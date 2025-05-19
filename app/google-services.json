@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "179381796267",
+    "project_id": "appp-c2ad4",
+    "storage_bucket": "appp-c2ad4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:179381796267:android:f0d28cfadbcb7c69c0a6ee",
+        "android_client_info": {
+          "package_name": "com.example.moso"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAJDgyMibSAeYDnPCnLp3vlMxt5MLv1wGk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
