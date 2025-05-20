@@ -1,4 +1,3 @@
-// app/src/main/java/com/example/moso/ui/screens/chat/ChatListScreen.kt
 package com.example.moso.ui.screens.chat
 
 import androidx.compose.foundation.clickable
@@ -34,14 +33,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.moso.ui.navigation.Screen
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
 data class ChatPreview(
+    val chatId: String,
     val userId: String,
     val userName: String,
-    val lastMessage: String
+    val lastMessage: String,
+    val lastMessageTimestamp: Long
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -65,11 +67,23 @@ fun ChatListScreen(
                 // Ajusta "chats" al nombre de tu colección en Firestore
                 val snapshot = db.collection("chats").get().await()
                 chats = snapshot.documents.mapNotNull { doc ->
-                    val userId      = doc.id
-                    val userName    = doc.getString("userName") ?: return@mapNotNull null
-                    val lastMessage = doc.getString("lastMessage") ?: ""
-                    ChatPreview(userId, userName, lastMessage)
-                }
+                    val participants = doc.get("participants") as? List<String> ?: return@mapNotNull null
+                    if (participants.size == 2) {
+                        val otherUserId = participants.find { it != FirebaseAuth.getInstance().currentUser?.uid }
+                        val userName = doc.getString("userName") ?: return@mapNotNull null
+                        val lastMessage = doc.getString("lastMessage") ?: ""
+                        val lastMessageTimestamp = doc.getLong("lastMessageTimestamp") ?: 0L
+                        ChatPreview(
+                            chatId = doc.id,
+                            userId = otherUserId ?: return@mapNotNull null,
+                            userName = userName,
+                            lastMessage = lastMessage,
+                            lastMessageTimestamp = lastMessageTimestamp
+                        )
+                    } else {
+                        null
+                    }
+                }.sortedByDescending { it.lastMessageTimestamp }
             } catch (e: Exception) {
                 errorMessage = e.message
             } finally {
@@ -97,7 +111,7 @@ fun ChatListScreen(
         ) {
             when {
                 isLoading -> {
-                    // Indicador de carga centra
+                    // Indicador de carga centrado
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
@@ -131,10 +145,10 @@ fun ChatListScreen(
                                     .clickable {
                                         // Abre el chat 1:1 con este usuario
                                         navController.navigate(
-                                            Screen.Chat.createRoute(chat.userId)
+                                            Screen.Chat.createRoute(chat.chatId)
                                         )
                                     },
-                                headlineContent   = { Text(chat.userName) },
+                                headlineContent = { Text(chat.userName) },
                                 supportingContent = { Text(chat.lastMessage) }
                             )
                             Divider()
@@ -145,4 +159,5 @@ fun ChatListScreen(
         }
     }
 }
+
 

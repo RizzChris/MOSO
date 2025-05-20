@@ -1,4 +1,3 @@
-// app/src/main/java/com/example/moso/ui/navigation/AppNavigation.kt
 package com.example.moso.ui.navigation
 
 import androidx.activity.compose.BackHandler
@@ -47,9 +46,11 @@ import com.example.moso.ui.screens.catalog.CatalogScreen
 import com.example.moso.ui.screens.chat.ChatListScreen
 import com.example.moso.ui.screens.chat.ChatScreen
 import com.example.moso.ui.screens.home.HomeScreen
+import com.example.moso.ui.screens.order.OrderDetailScreen
 import com.example.moso.ui.screens.product.ProductDetailScreen
 import com.example.moso.ui.screens.product.SellProductScreen
 import com.example.moso.ui.screens.profile.ProfileScreen
+import com.example.moso.ui.screens.purchases.PurchasesScreen
 import com.example.moso.ui.screens.search.SearchScreen
 import com.example.moso.ui.screens.settings.SettingsScreen
 import com.example.moso.ui.theme.MosoBlue
@@ -136,26 +137,28 @@ fun AppNavigation(authViewModel: AuthViewModel = viewModel()) {
                         onClick = { navController.navigate(Screen.Profile.route) }
                     )
                     NavigationBarItem(
-                        icon    = { Icon(Icons.Default.ShoppingCart, contentDescription = "Carrito") },
-                        label   = { Text("Carrito") },
-                        selected= current == Screen.Cart.route,
-                        onClick = { navController.navigate(Screen.Cart.route) }
+                        icon    = { Icon(Icons.Default.ShoppingCart, contentDescription = "Compras") },
+                        label   = { Text("Compras") },
+                        selected= current == Screen.Purchases.route,
+                        onClick = { navController.navigate(Screen.Purchases.route) }
                     )
+
                     NavigationBarItem(
-                        icon    = { Icon(Icons.Default.ChatBubble, contentDescription = "Chat") },
-                        label   = { Text("Chat") },
-                        selected= current == Screen.ChatList.route,
+                        icon = { Icon(Icons.Default.ChatBubble, contentDescription = "Chat") },
+                        label = { Text("Chat") },
+                        selected = current == Screen.ChatList.route,
                         onClick = { navController.navigate(Screen.ChatList.route) }
                     )
+
                 }
             }
         ) { inner ->
             Box(Modifier.padding(inner)) {
                 NavHost(navController, startDestination = Screen.Home.route) {
 
-                    composable("catalog/{categoryId}") { backStackEntry ->
-                        val categoryId = backStackEntry.arguments?.getString("categoryId")
-                        CatalogScreen(navController, categoryId)  // Pasa el categoryId recibido
+                    composable(Screen.Catalog.route) { back ->
+                        val catId = back.arguments?.getString("categoryId")
+                        CatalogScreen(navController, if (catId == "all") null else catId)
                     }
 
 
@@ -169,7 +172,9 @@ fun AppNavigation(authViewModel: AuthViewModel = viewModel()) {
                             onNavigateToCatalog = { categoryId ->
                                 navController.navigate("catalog/$categoryId")
                             },
-                            onNavigateToProductDetail = { pid -> navController.navigate(Screen.ProductDetail.createRoute(pid)) },
+                            onNavigateToProductDetail = { pid ->
+                                navController.navigate(Screen.ProductDetail.createRoute(pid))
+                            },
                             onNavigateToProfile = { navController.navigate(Screen.Profile.route) },
                             onNavigateToCart = { navController.navigate(Screen.Cart.route) },
                             onNavigateToChat = { navController.navigate(Screen.ChatList.route) }
@@ -183,18 +188,38 @@ fun AppNavigation(authViewModel: AuthViewModel = viewModel()) {
                         ChatScreen(uid, navController)
                     }
                     composable(Screen.Search.route) {
-                        SearchScreen(
-                            onNavigateToProductDetail = { pid -> navController.navigate(Screen.ProductDetail.createRoute(pid)) },
-                            onNavigateUp = { navController.navigateUp() }
-                        )
+                        SearchScreen(navController)
                     }
-                    composable(Screen.Profile.route)      { ProfileScreen { navController.navigateUp() } }
-                    composable(Screen.Settings.route)     { SettingsScreen(navController) }
+                    composable(Screen.Profile.route) { ProfileScreen { navController.navigateUp() } }
+                    composable(Screen.Purchases.route) { PurchasesScreen(navController) }
+                    // Ruta para las compras
+                    composable(Screen.Settings.route){ SettingsScreen(navController) }
+                    composable(Screen.OrderDetail.route) { back ->
+                        val oid = back.arguments?.getString("orderId") ?: return@composable
+                        OrderDetailScreen(oid, navController)
+                    }
+                    composable(Screen.OrderDetail.route) { back ->
+                        val orderId = back.arguments?.getString("orderId") ?: return@composable
+                        OrderDetailScreen(orderId, navController)
+                    }
+                    composable(Screen.Profile.route) {
+                        ProfileScreen { navController.navigateUp() }
+                    }
+
+
+
+                    // Aquí va tu pantalla de detalle:
+                    composable(Screen.OrderDetail.route) { back ->
+                        val orderId = back.arguments?.getString("orderId") ?: return@composable
+                        OrderDetailScreen(orderId, navController)
+                    }
+
                 }
             }
         }
     }
 }
+
 
 
 

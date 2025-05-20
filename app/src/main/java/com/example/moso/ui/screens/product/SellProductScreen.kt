@@ -60,14 +60,18 @@ import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
 import java.util.UUID
 
+@Suppress("DefaultLocale")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SellProductScreen(navController: NavController) {
+fun SellProductScreen(
+    navController: NavController
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val productRepository = remember { ProductRepository() }
 
     var name by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") } // Nueva variable para descripción
     var price by remember { mutableStateOf("") }
     var stock by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("") }
@@ -76,7 +80,9 @@ fun SellProductScreen(navController: NavController) {
     var showSuccessDialog by remember { mutableStateOf(false) }
     var showErrorMessage by remember { mutableStateOf<String?>(null) }
     var expanded by remember { mutableStateOf(false) }
-    val isFormValid = name.isNotBlank() && price.toDoubleOrNull() != null && stock.toIntOrNull() != null && category.isNotBlank()
+
+    val isFormValid = name.isNotBlank() && description.isNotBlank() &&
+            price.toDoubleOrNull() != null && stock.toIntOrNull() != null && category.isNotBlank()
 
     val imagePicker = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
@@ -141,8 +147,12 @@ fun SellProductScreen(navController: NavController) {
                         modifier = Modifier.fillMaxSize()
                     )
                 } ?: run {
-                    Icon(Icons.Default.Add, contentDescription = null,
-                        modifier = Modifier.size(40.dp), tint = MaterialTheme.colorScheme.primary)
+                    Icon(
+                        Icons.Default.Add,
+                        contentDescription = null,
+                        modifier = Modifier.size(40.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
                 }
             }
 
@@ -154,8 +164,19 @@ fun SellProductScreen(navController: NavController) {
                 singleLine = true
             )
 
-            // Categoría con Dropdown
+            // Campo de descripción multilineal
+            OutlinedTextField(
+                value = description,
+                onValueChange = { description = it },
+                label = { Text("Descripción del producto") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(120.dp),
+                singleLine = false,
+                maxLines = 5
+            )
 
+            // Categoría con Dropdown
             ExposedDropdownMenuBox(
                 expanded = expanded,
                 onExpandedChange = { expanded = !expanded }
@@ -175,8 +196,9 @@ fun SellProductScreen(navController: NavController) {
                     onDismissRequest = { expanded = false }
                 ) {
                     val categories = listOf(
-                        "RESISTENCIAS", "CAPACITORES", "CIRCUITOS INTEGRADOS", "TRANSISTORES",
-                        "DIODOS", "SENSORES", "DISPLAYS", "FUENTES DE ALIMENTACION", "Otros"
+                        "RESISTENCIAS", "CAPACITORES", "CIRCUITOS INTEGRADOS",
+                        "TRANSISTORES", "DIODOS", "SENSORES", "DISPLAYS",
+                        "FUENTES DE ALIMENTACION", "Otros"
                     )
                     categories.forEach { cat ->
                         DropdownMenuItem(text = { Text(cat) }, onClick = {
@@ -209,7 +231,6 @@ fun SellProductScreen(navController: NavController) {
                 Text(text = msg, color = MaterialTheme.colorScheme.error)
             }
 
-            // Publicar
             Button(
                 onClick = {
                     isSubmitting = true
@@ -223,29 +244,22 @@ fun SellProductScreen(navController: NavController) {
                         val imageBytes = selectedImageUri?.let { uri ->
                             context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
                         }
-                        val imageUrl = selectedImageUri?.toString() ?: ""
-
                         val newProduct = Product(
                             id = UUID.randomUUID().toString(),
                             name = name,
+                            description = description, // Guarda descripción
                             price = price.toDouble(),
                             stock = stock.toInt(),
-                            imageUrl = imageUrl,
+                            imageUrl = "",
                             category = category,
                             sellerId = user.uid,
                             sellerName = user.displayName ?: "",
                             timestamp = System.currentTimeMillis(),
                             categoryId = category
                         )
-
-                        val result = productRepository.addProduct(
-                            product = newProduct,
-                            imageByteArray = imageBytes
-                        )
-
+                        val result = productRepository.addProduct(newProduct, imageBytes)
                         if (result.isSuccess) showSuccessDialog = true
                         else showErrorMessage = result.exceptionOrNull()?.message
-
                         isSubmitting = false
                     }
                 },
@@ -265,5 +279,6 @@ fun SellProductScreen(navController: NavController) {
         }
     }
 }
+
 
 

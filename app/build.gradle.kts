@@ -1,22 +1,19 @@
 plugins {
-    alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
-    alias(libs.plugins.kotlin.compose)
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.gms.google-services")
 }
 
-
 android {
-    namespace = "com.example.moso"
-    compileSdk = 35
 
+    compileSdk = 35
     defaultConfig {
         applicationId = "com.example.moso"
-        minSdk = 24
-        targetSdk = 35
+        minSdk = 23
+        targetSdk = 33
         versionCode = 1
         versionName = "1.0"
-
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -39,10 +36,19 @@ android {
     buildFeatures {
         compose = true
     }
+    // Aquí es donde se debe especificar el `namespace` que corresponde al nombre del paquete de la aplicación
+    namespace = "com.example.moso"  // Añade esta línea para resolver el error de namespace
+}
+
+configurations.all {
+    resolutionStrategy {
+        // Solo forzamos navegación; dejamos que el BOM de Firebase gestione sus propias versiones
+        force("androidx.navigation:navigation-compose:2.9.0")
+    }
 }
 
 dependencies {
-    // Jetpack Compose (ya los tienes)
+    // Jetpack Compose
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -51,21 +57,21 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
-    implementation("io.coil-kt:coil-compose:2.4.0")
 
+    // Firebase dependencies
+    implementation(platform(libs.firebase.bom)) // Firebase BOM to manage versions
+    implementation(libs.firebase.auth.ktx)
+    implementation(libs.firebase.firestore.ktx)
+    implementation(libs.firebase.storage.ktx)
+    implementation(libs.firebase.database.ktx)
 
-    //  Firebase dependencies
-    implementation(platform("com.google.firebase:firebase-bom:33.13.0")) // BOM administra versiones
-    implementation("com.google.firebase:firebase-auth-ktx")
-    implementation("com.google.firebase:firebase-firestore-ktx")
-    implementation("com.google.firebase:firebase-storage-ktx")
-    // Opcional para chat en tiempo real:
-    implementation("com.google.firebase:firebase-database-ktx")
-    implementation(libs.firebase.vertexai)
-    implementation(libs.androidx.navigation.runtime.android)
+    // Navigation
     implementation(libs.androidx.navigation.compose.android)
 
-    // Test
+    // Coil for image loading
+    implementation(libs.coil.compose)
+
+    // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -74,12 +80,7 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 
-    // Coroutines
-    implementation("androidx.compose.material:material-icons-extended")
-    implementation("io.coil-kt:coil-compose:2.4.0")
-    implementation ("com.google.firebase:firebase-storage-ktx:20.1.0")
-
-    implementation ("androidx.navigation:navigation-compose:2.5.3")
-
+    // Material Icons Extended (para Icons.Default.ChatBubble, etc)
+    implementation("androidx.compose.material:material-icons-extended:1.4.4")
 
 }

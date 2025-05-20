@@ -12,7 +12,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,14 +22,18 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -50,6 +53,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -75,6 +82,8 @@ fun LoginScreen(
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    // Nuevo estado para controlar la visibilidad de la contraseña
+    var passwordVisible by remember { mutableStateOf(false) }
     val isLoading by viewModel.isLoading.collectAsState(initial = false)
     val error by viewModel.errorMessage.collectAsState(initial = null)
 
@@ -174,22 +183,15 @@ fun LoginScreen(
                                     .fillMaxWidth()
                                     .padding(horizontal = 16.dp)
                             ) {
-                                // Ícono a la izquierda
-                                Box(
+                                // Icono de Facebook en blanco directamente sobre el fondo azul
+                                Icon(
+                                    painter = painterResource(id = R.drawable.icon_facebook),
+                                    contentDescription = "Facebook",
+                                    tint = Color.White,
                                     modifier = Modifier
-                                        .size(24.dp)
-                                        .background(Color.Black, CircleShape)
+                                        .size(22.dp)
                                         .align(Alignment.CenterStart)
-                                ) {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.icon_facebook),
-                                        contentDescription = "Facebook",
-                                        tint = Color.White,
-                                        modifier = Modifier
-                                            .size(16.dp)
-                                            .align(Alignment.Center)
-                                    )
-                                }
+                                )
 
                                 // Texto centrado
                                 Text(
@@ -223,21 +225,15 @@ fun LoginScreen(
                                     .fillMaxWidth()
                                     .padding(horizontal = 16.dp)
                             ) {
-                                // Ícono a la izquierda
-                                Box(
+                                // Ícono a la izquierda sin el box contenedor
+                                Icon(
+                                    painter = painterResource(id = R.drawable.icon_google),
+                                    contentDescription = "Google",
+                                    tint = Color.Unspecified,
                                     modifier = Modifier
-                                        .size(24.dp)
+                                        .size(20.dp)
                                         .align(Alignment.CenterStart)
-                                ) {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.icon_google),
-                                        contentDescription = "Google",
-                                        tint = Color.Unspecified,
-                                        modifier = Modifier
-                                            .size(20.dp)
-                                            .align(Alignment.Center)
-                                    )
-                                }
+                                )
 
                                 // Texto centrado
                                 Text(
@@ -296,23 +292,39 @@ fun LoginScreen(
                             label = { Text("Correo electrónico") },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(8.dp)
+                            shape = RoundedCornerShape(8.dp),
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Email,
+                                imeAction = ImeAction.Next
+                            )
                         )
 
                         Spacer(Modifier.height(8.dp))
 
+                        // Campo de contraseña modificado con icono para mostrar/ocultar
                         OutlinedTextField(
                             value = password,
                             onValueChange = { password = it },
                             label = { Text("Contraseña") },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(8.dp)
+                            shape = RoundedCornerShape(8.dp),
+                            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                            trailingIcon = {
+                                IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                                    Icon(
+                                        imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                        contentDescription = if (passwordVisible) "Ocultar contraseña" else "Mostrar contraseña",
+                                        tint = if (passwordVisible) MosoBlue else Color.Gray
+                                    )
+                                }
+                            }
                         )
 
                         error?.let {
                             Spacer(Modifier.height(8.dp))
-                            Text(text = it,                 color = MaterialTheme.colorScheme.error)
+                            Text(text = it, color = MaterialTheme.colorScheme.error)
                         }
 
                         Spacer(Modifier.height(24.dp))

@@ -16,6 +16,7 @@ import androidx.navigation.NavController
 import com.example.moso.ui.auth.AuthViewModel
 import com.example.moso.ui.navigation.Screen
 
+
 @Composable
 fun AppDrawerContent(
     navController: NavController,
@@ -45,10 +46,23 @@ fun AppDrawerContent(
         )
         DrawerItem(
             label = "Catálogo",
-            route = Screen.Catalog.route,
+            route = Screen.Catalog.createRoute("all"),
             navController = navController,
             onCloseDrawer = onCloseDrawer
         )
+        DrawerItem(
+            label = "Compras",
+            route = Screen.Purchases.route,
+            navController = navController,
+            onCloseDrawer = onCloseDrawer
+        )
+        DrawerItem(
+            label = "Ventas",
+            route = Screen.Sales.route,
+            navController = navController,
+            onCloseDrawer = onCloseDrawer
+        )
+
         DrawerItem(
             label = "Mi perfil",
             route = Screen.Profile.route,
@@ -91,7 +105,9 @@ private fun DrawerItem(
         modifier = Modifier
             .fillMaxWidth()
             .clickable {
-                navController.navigate(route)
+                navController.navigate(route) {
+                    popUpTo(Screen.Home.route) { inclusive = false }
+                }
                 onCloseDrawer()
             }
             .padding(vertical = 12.dp)

@@ -1,4 +1,3 @@
-// ui/screens/chat/ChatScreen.kt
 package com.example.moso.ui.screens.chat
 
 import androidx.compose.foundation.background
@@ -49,12 +48,13 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.moso.data.model.Message
 import com.example.moso.data.model.User
-import com.example.moso.data.repository.ChatRepository
-import com.example.moso.data.repository.UserRepository
 import com.example.moso.ui.theme.MosoBlue
 import com.example.moso.ui.theme.QuicksandFontFamily
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -67,8 +67,7 @@ fun ChatScreen(
 ) {
     val me = FirebaseAuth.getInstance().currentUser
     val scope = rememberCoroutineScope()
-    val chatRepo = remember { ChatRepository() }
-    val userRepo = remember { UserRepository() }
+    val firestore = FirebaseFirestore.getInstance()
 
     var chatId by remember { mutableStateOf<String?>(null) }
     var messages by remember { mutableStateOf(emptyList<Message>()) }
@@ -81,9 +80,21 @@ fun ChatScreen(
     // 1) Crear o recuperar chatId
     LaunchedEffect(userId, me?.uid) {
         me?.uid?.let { myId ->
-            chatRepo.createOrGetChat(myId, userId)
-                .onSuccess { chatId = it }
-                .onFailure { errorMessage = it.message }
+            val chatRef = firestore.collection("chats")
+            val chatDoc = chatRef.whereArrayContains("participants", myId).whereArrayContains("participants", userId).get().await()
+
+            if (chatDoc.isEmpty) {
+                // Si no existe el chat, crearlo
+                val newChatRef = chatRef.add(mapOf(
+                    "participants" to listOf(myId, userId),
+                    "messages" to emptyList<Message>()
+                )).await()
+
+                chatId = newChatRef.id
+            } else {
+                // Si ya existe el chat
+                chatId = chatDoc.documents[0].id
+            }
         }
     }
 
@@ -91,15 +102,32 @@ fun ChatScreen(
     LaunchedEffect(chatId) {
         chatId?.let { id ->
             isLoading = true
-            chatRepo.getMessagesForChat(id)
-                .onSuccess { list -> messages = list }
-                .onFailure { errorMessage = it.message }
+            val chatRef = firestore.collection("chats").document(id)
+            chatRef.get().addOnSuccessListener { snapshot ->
+                val loadedMessages = snapshot.get("messages") as List<Map<String, Any>>
+                messages = loadedMessages.map { map ->
+                    Message(
+                        content = map["content"] as String,
+                        senderId = map["senderId"] as String,
+                        timestamp = map["timestamp"] as Long
+                    )
+                }
+            }
             isLoading = false
-            chatRepo.listenForMessages(id) { newList ->
-                messages = newList
-                scope.launch {
-                    if (messages.isNotEmpty())
-                        listState.scrollToItem(messages.size - 1)
+            chatRef.addSnapshotListener { snapshot, _ ->
+                snapshot?.let {
+                    val updatedMessages = it.get("messages") as List<Map<String, Any>>
+                    messages = updatedMessages.map { map ->
+                        Message(
+                            content = map["content"] as String,
+                            senderId = map["senderId"] as String,
+                            timestamp = map["timestamp"] as Long
+                        )
+                    }
+                    scope.launch {
+                        if (messages.isNotEmpty())
+                            listState.scrollToItem(messages.size - 1)
+                    }
                 }
             }
         }
@@ -155,10 +183,14 @@ fun ChatScreen(
                     FloatingActionButton(onClick = {
                         val myId = me?.uid ?: return@FloatingActionButton
                         val cid = chatId ?: return@FloatingActionButton
-                        scope.launch {
-                            chatRepo.sendMessage(cid, myId, userId, messageText)
-                            messageText = ""
-                        }
+                        val newMessage = Message(
+                            content = messageText,
+                            senderId = myId,
+                            timestamp = System.currentTimeMillis()
+                        )
+                        firestore.collection("chats").document(cid)
+                            .update("messages", FieldValue.arrayUnion(newMessage))
+                        messageText = ""
                     }, containerColor = MosoBlue) {
                         Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Enviar")
                     }
@@ -206,7 +238,6 @@ fun MessageBubble(message: Message, isFromCurrentUser: Boolean) {
             Text(message.content, color = if (isFromCurrentUser)
                 MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Text(time, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top=4.dp))
+        Text(time, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top = 4.dp))
     }
 }
-

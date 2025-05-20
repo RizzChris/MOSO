@@ -2,9 +2,11 @@ package com.example.moso.ui.screens.home
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -19,6 +21,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
@@ -41,6 +44,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -50,20 +54,20 @@ import com.example.moso.data.model.Product
 import com.example.moso.data.model.ProductCategories
 import com.example.moso.ui.theme.AccentOrange
 import com.google.firebase.firestore.FirebaseFirestore
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.tasks.await
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     onNavigateToSell: () -> Unit,
+    onNavigateToCatalog: (String) -> Unit,
     onNavigateToProductDetail: (String) -> Unit,
     onNavigateToProfile: () -> Unit,
     onNavigateToCart: () -> Unit,
     onNavigateToChat: () -> Unit,
-    onNavigateToCatalog: (String) -> Unit,
 ) {
-    // — Datos y carga —
+    // — Datos y carga de productos (igual que antes) —
     var products by remember { mutableStateOf<List<Product>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -71,24 +75,18 @@ fun HomeScreen(
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(selectedCategory) {
-        scope.launch {
-            isLoading = true
-            try {
-                val query = FirebaseFirestore.getInstance()
-                    .collection("products")
-                    .let {
-                        if (selectedCategory.isBlank()) it
-                        else it.whereEqualTo("categoryId", selectedCategory)
-                    }
-                val snapshot = query.get().await()
-                products = snapshot.documents
-                    .mapNotNull { it.toObject(Product::class.java)?.copy(id = it.id) }
-                errorMessage = null
-            } catch (e: Exception) {
-                errorMessage = e.message
-            } finally {
-                isLoading = false
-            }
+        isLoading = true
+        try {
+            val query = FirebaseFirestore.getInstance().collection("products")
+                .let { if (selectedCategory.isBlank()) it else it.whereEqualTo("categoryId", selectedCategory) }
+            val snapshot = query.get().await()
+            products = snapshot.documents
+                .mapNotNull { it.toObject(Product::class.java)?.copy(id = it.id) }
+            errorMessage = null
+        } catch (e: Exception) {
+            errorMessage = e.message
+        } finally {
+            isLoading = false
         }
     }
 
@@ -96,32 +94,65 @@ fun HomeScreen(
 
     // — Mapa de categoría a recurso drawable —
     val categoryImageMap = mapOf(
-        "RESISTENCIAS"           to R.drawable.resistencias,
-        "CAPACITORES"            to R.drawable.capacitores,
-        "CIRCUITOS INTEGRADOS"   to R.drawable.circuitos_integrados,
-        "TRANSISTORES"           to R.drawable.transistores,
-        "DIODOS"                 to R.drawable.diodos,
-        "SENSORES"               to R.drawable.sensores,
-        "DISPLAYS"               to R.drawable.displays,
-        "CONECTORES"             to R.drawable.conectores,
+        "RESISTENCIAS" to R.drawable.resistencias,
+        "CAPACITORES" to R.drawable.capacitores,
+        "CIRCUITOS INTEGRADOS" to R.drawable.circuitos_integrados,
+        "TRANSISTORES" to R.drawable.transistores,
+        "DIODOS" to R.drawable.diodos,
+        "SENSORES" to R.drawable.sensores,
+        "DISPLAYS" to R.drawable.displays,
+        "CONECTORES" to R.drawable.conectores,
         "FUENTES DE ALIMENTACION" to R.drawable.fuentes_de_alimentacion,
-        "Otro"                   to R.drawable.otro
+        "OTRO" to R.drawable.otro
     )
 
     // — Datos del carrusel —
-    val categoryData = listOf(
-        Triple("RESISTENCIAS", R.drawable.resistencias, "¡Las resistencias limitan el flujo de corriente en un circuito!"),
+    // Creamos una lista infinita duplicando los elementos para el efecto de carrusel infinito
+    val originalCarouselData = listOf(
+        Triple("RESISTENCIAS", R.drawable.resistencias, "¡Las resistencias limitan el flujo de corriente!"),
         Triple("CAPACITORES", R.drawable.capacitores, "¡Los capacitores almacenan energía en un campo eléctrico!"),
-        Triple("CIRCUITOS INTEGRADOS", R.drawable.circuitos_integrados, "¡Los circuitos integrados combinan múltiples componentes electrónicos en un solo chip!"),
-        Triple("TRANSISTORES", R.drawable.transistores, "¡Los transistores amplifican señales eléctricas!"),
-        Triple("DIODOS", R.drawable.diodos, "¡Los diodos permiten que la corriente fluya en una sola dirección!"),
-        Triple("SENSORES", R.drawable.sensores, "¡Los sensores detectan cambios en el entorno físico!"),
-        Triple("DISPLAYS", R.drawable.displays, "¡Los displays son pantallas que muestran información visual!"),
-        Triple("CONECTORES", R.drawable.conectores, "¡Los conectores permiten la interconexión de circuitos eléctricos!"),
-        Triple("FUENTES DE ALIMENTACION", R.drawable.fuentes_de_alimentacion, "¡Las fuentes de alimentación proporcionan energía a los circuitos!")
+        Triple("CIRCUITOS INTEGRADOS", R.drawable.circuitos_integrados, "¡Varios componentes en un solo chip!"),
+        Triple("TRANSISTORES", R.drawable.transistores, "¡Los transistores amplifican señales!"),
+        Triple("DIODOS", R.drawable.diodos, "¡Los diodos permiten corriente unidireccional!"),
+        Triple("SENSORES", R.drawable.sensores, "¡Detectan cambios en el entorno!"),
+        Triple("DISPLAYS", R.drawable.displays, "¡Muestran información visual!"),
+        Triple("CONECTORES", R.drawable.conectores, "¡Conectan circuitos eléctricos!"),
+        Triple("FUENTES DE ALIMENTACION", R.drawable.fuentes_de_alimentacion, "¡Proporcionan energía!"),
     )
 
-    // — Contenido —
+    // Duplicamos la lista para crear efecto de carrusel infinito
+    val carouselData = originalCarouselData + originalCarouselData + originalCarouselData
+
+    // Control de scroll automático
+    val listState = rememberLazyListState()
+    var currentPage by remember { mutableStateOf(originalCarouselData.size) } // Empezamos en la segunda "sección"
+
+    // Iniciamos el scroll en la posición del segundo conjunto de items
+    LaunchedEffect(Unit) {
+        listState.scrollToItem(originalCarouselData.size)
+    }
+
+    LaunchedEffect(carouselData.size) {
+        while (true) {
+            delay(3000) // Aumentamos el tiempo para que sea más visible
+            currentPage = (currentPage + 1) % carouselData.size
+            listState.animateScrollToItem(currentPage)
+
+            // Si llegamos al final del segundo conjunto, saltamos al inicio del segundo conjunto
+            if (currentPage >= originalCarouselData.size * 2) {
+                delay(500) // Pequeña pausa para que termine la animación
+                currentPage = originalCarouselData.size
+                listState.scrollToItem(currentPage)
+            }
+            // Si llegamos al inicio del segundo conjunto, saltamos al final del primer conjunto
+            else if (currentPage < originalCarouselData.size) {
+                delay(500) // Pequeña pausa para que termine la animación
+                currentPage = originalCarouselData.size * 2 - 1
+                listState.scrollToItem(currentPage)
+            }
+        }
+    }
+
     Column(
         Modifier
             .fillMaxSize()
@@ -137,7 +168,7 @@ fun HomeScreen(
             Text("Vender Componente", style = MaterialTheme.typography.titleMedium)
         }
 
-        // 2) Sección marrón Catálogo
+        // 2) Catálogo marrón
         Surface(
             color = Color(0xFF8B5E3C),
             modifier = Modifier.fillMaxWidth()
@@ -145,7 +176,7 @@ fun HomeScreen(
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
-                    .clickable(onClick = { onNavigateToCatalog("") })
+                    .clickable { onNavigateToCatalog("") }
                     .padding(16.dp)
             ) {
                 Icon(
@@ -162,102 +193,103 @@ fun HomeScreen(
             }
         }
 
-        // 3) Carrusel de imágenes con datos interesantes
+        // 3) Carrusel con "peek" simétrico a ambos lados y tamaño ajustado
         LazyRow(
+            state = listState,
+            // Cálculo preciso del padding para mantener simetría
+            contentPadding = PaddingValues(
+                start = (LocalConfiguration.current.screenWidthDp * 0.15).dp,
+                end = (LocalConfiguration.current.screenWidthDp * 0.15).dp
+            ),
+            horizontalArrangement = Arrangement.spacedBy(12.dp), // Espacio entre items
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                .height(150.dp) // Alto ajustado
+                .padding(vertical = 8.dp)
         ) {
-            items(categoryData) { category ->
-                val (name, imageRes, description) = category
+            items(carouselData) { (cat, img, desc) ->
                 Card(
                     modifier = Modifier
-                        .width(200.dp)
-                        .height(200.dp)
-                        .clickable {
-                            onNavigateToCatalog(name) // Redirige a CatalogScreen con la categoría
-                        },
+                        .width((LocalConfiguration.current.screenWidthDp * 0.7).dp) // Ancho fijo calculado
+                        .border(width = 1.dp, color = Color.LightGray),
                     shape = RoundedCornerShape(12.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                    elevation = CardDefaults.cardElevation(4.dp)
                 ) {
                     Column(
+                        Modifier
+                            .fillMaxSize()
+                            .clickable { onNavigateToCatalog(cat) },
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center,
-                        modifier = Modifier.fillMaxSize()
+                        verticalArrangement = Arrangement.Center
                     ) {
-                        // Imagen de la categoría
                         Image(
-                            painter = painterResource(id = imageRes),
-                            contentDescription = name,
+                            painter = painterResource(img),
+                            contentDescription = cat,
                             contentScale = ContentScale.Crop,
                             modifier = Modifier
-                                .size(120.dp)
-                                .padding(8.dp)
+                                .fillMaxWidth()
+                                .weight(1f)
                         )
-
-                        // Texto interesante de la categoría
+                        Spacer(Modifier.height(4.dp)) // Reducido
                         Text(
-                            text = description,
+                            desc,
                             style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.padding(8.dp),
-                            textAlign = TextAlign.Center
+                            textAlign = TextAlign.Center,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier
+                                .padding(horizontal = 8.dp)
+                                .fillMaxWidth()
                         )
+                        Spacer(Modifier.height(4.dp)) // Reducido
                     }
                 }
             }
         }
 
-        // 4) Título Categorías
+        // 4) Título "Categorías"
         Text(
             "Categorías",
             style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.padding(start = 16.dp, bottom = 8.dp)
+            modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 4.dp)
         )
 
-        // 5) Grid de categorías con imágenes
+        // 5) Grid de categorías con imágenes más grandes
         LazyVerticalGrid(
             columns = GridCells.Fixed(3),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
+            contentPadding = PaddingValues(16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxSize()
         ) {
             items(ProductCategories.allCategories) { cat ->
                 val count = countsByCat[cat] ?: 0
-                val imageRes = categoryImageMap[cat.uppercase()] ?: R.drawable.placeholder
+                val imgRes = categoryImageMap[cat.uppercase()] ?: R.drawable.placeholder
 
                 Card(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(0.85f) // Más alargado vertical
-                        .height(160.dp)     // Más alto
-                        .clickable {
-                            onNavigateToCatalog(cat.uppercase()) // Redirige a CatalogScreen con la categoría
-                        }
-                        .padding(4.dp),
+                        .aspectRatio(1f)
+                        .clickable { onNavigateToCatalog(cat.uppercase()) },
                     shape = RoundedCornerShape(12.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                    elevation = CardDefaults.cardElevation(2.dp),
                     colors = CardDefaults.cardColors(containerColor = Color(0xFFF2ECF7))
                 ) {
                     Column(
-                        modifier = Modifier
+                        Modifier
                             .fillMaxSize()
-                            .padding(top = 10.dp, bottom = 8.dp, start = 4.dp, end = 4.dp), // Menos margen
+                            .padding(8.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Top
                     ) {
                         Image(
-                            painter = painterResource(id = imageRes),
+                            painter = painterResource(id = imgRes),
                             contentDescription = cat,
                             contentScale = ContentScale.Fit,
-                            modifier = Modifier
-                                .size(72.dp) // Un poco más grande y centrada
+                            modifier = Modifier.size(80.dp)
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(Modifier.height(8.dp))
                         Text(
-                            text = cat.uppercase(),
+                            cat.uppercase(),
                             style = MaterialTheme.typography.bodyMedium,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
@@ -266,7 +298,7 @@ fun HomeScreen(
                         )
                         if (count > 0) {
                             Text(
-                                text = "$count productos",
+                                "$count productos",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = AccentOrange,
                                 textAlign = TextAlign.Center,
