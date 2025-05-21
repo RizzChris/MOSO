@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    package="com.example.moso"> <!-- Asegúrate de poner el nombre de tu paquete aquí -->
+    package="com.example.moso">
 
     <uses-permission android:name="android.permission.INTERNET" />
 
@@ -14,6 +14,16 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.MOSO"
         tools:targetApi="31">
+
+        <!-- ↓↓↓ AÑADE ESTO ↓↓↓ -->
+        <meta-data
+            android:name="com.facebook.sdk.ApplicationId"
+            android:value="@string/facebook_app_id"/>
+        <meta-data
+            android:name="com.facebook.sdk.ClientToken"
+            android:value="@string/facebook_client_token"/>
+        <!-- ↑↑↑ FIN AÑADIDO ↑↑↑ -->
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

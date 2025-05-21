@@ -1,3 +1,4 @@
+// app/src/main/java/com/example/moso/ui/screens/order/OrderDetailScreen.kt
 package com.example.moso.ui.screens.order
 
 import androidx.compose.foundation.layout.Arrangement
@@ -18,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -56,53 +58,64 @@ fun OrderDetailScreen(
     orderId: String,
     navController: NavController
 ) {
-    data class OrderProduct(val id: String, val name: String, val imageUrl: String, val seller: String)
+    data class OrderProduct(
+        val id: String,
+        val name: String,
+        val imageUrl: String,
+        val seller: String
+    )
 
     var products by remember { mutableStateOf<List<OrderProduct>>(emptyList()) }
     var date by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
 
-    val userId = FirebaseAuth.getInstance().currentUser?.uid
+    val uid = FirebaseAuth.getInstance().currentUser?.uid
     val firestore = FirebaseFirestore.getInstance()
     val productRepo = remember { ProductRepository() }
     val dateFmt = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
 
     LaunchedEffect(orderId) {
-        if (userId == null) {
+        if (uid == null) {
             error = "Usuario no autenticado"
             isLoading = false
             return@LaunchedEffect
         }
         try {
+            // 1️⃣ Obtén documento de la orden
             val orderDoc = firestore
                 .collection("orders")
-                .document(userId)
+                .document(uid)
                 .collection("userOrders")
                 .document(orderId)
                 .get()
                 .await()
 
+            // 2️⃣ Extrae la fecha
             date = orderDoc.getLong("timestamp")
-                ?.let { dateFmt.format(Date(it)) } ?: ""
+                ?.let { dateFmt.format(Date(it)) }
+                .orEmpty()
 
+            // 3️⃣ Obtén lista inicial de pares (productId, qty) – aquí sólo importa el productId
+            @Suppress("UNCHECKED_CAST")
             val raw = orderDoc.get("products") as? List<Map<String, Any>> ?: emptyList()
 
-            // Carga en paralelo todos los Product
+            // 4️⃣ Carga en paralelo cada producto completo
             val loaded = coroutineScope {
-                raw.map { item ->
+                raw.mapNotNull { item ->
                     async {
                         val pid = item["productId"] as? String ?: return@async null
-                        // Usar repository para obtener Product completo
-                        val res = productRepo.getProductById(pid)
-                        res.getOrNull()?.let { prod ->
-                            OrderProduct(
-                                id = prod.id,
-                                name = prod.name,
-                                imageUrl = prod.imageUrl,
-                                seller = prod.sellerName.ifBlank { "Desconocido" }
-                            )
-                        }
+                        // Llamada al repo para obtener Product
+                        productRepo.getProductById(pid)
+                            .getOrNull()
+                            ?.let { prod ->
+                                OrderProduct(
+                                    id        = prod.id,
+                                    name      = prod.name,
+                                    imageUrl  = prod.imageUrl,
+                                    seller    = prod.sellerName.ifBlank { "Desconocido" }
+                                )
+                            }
                     }
                 }.awaitAll().filterNotNull()
             }
@@ -127,53 +140,58 @@ fun OrderDetailScreen(
                 }
             )
         }
-    ) { paddingValues ->
+    ) { padding ->
         Box(
             Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
+                .padding(padding),
+            contentAlignment = Alignment.Center
         ) {
             when {
-                isLoading -> Text("Cargando...", Modifier.align(Alignment.Center))
-                error != null -> Text(
-                    text = error!!,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.align(Alignment.Center)
-                )
-                products.isEmpty() -> Text(
-                    "No hay productos en esta orden",
-                    Modifier.align(Alignment.Center)
-                )
-                else -> LazyColumn(
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    item {
-                        Text("Fecha: $date", style = MaterialTheme.typography.bodyMedium)
-                        Divider(modifier = Modifier.padding(vertical = 8.dp))
-                    }
-                    items(products) { p ->
-                        Card(
-                            elevation = CardDefaults.cardElevation(4.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                isLoading -> {
+                    CircularProgressIndicator()
+                }
+                error != null -> {
+                    Text(error!!, color = MaterialTheme.colorScheme.error)
+                }
+                products.isEmpty() -> {
+                    Text("No hay productos en esta orden")
+                }
+                else -> {
+                    LazyColumn(
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        item {
+                            Text("Fecha: $date", style = MaterialTheme.typography.bodyMedium)
+                            Divider(Modifier.padding(vertical = 8.dp))
+                        }
+                        items(products) { p ->
+                            Card(
+                                elevation = CardDefaults.cardElevation(4.dp),
+                                modifier = Modifier.fillMaxWidth()
                             ) {
-                                AsyncImage(
-                                    model = p.imageUrl.ifEmpty { "https://via.placeholder.com/60" },
-                                    contentDescription = p.name,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.size(60.dp)
-                                )
-                                Spacer(Modifier.width(12.dp))
-                                Column {
-                                    Text(p.name, style = MaterialTheme.typography.bodyLarge)
-                                    Spacer(Modifier.height(4.dp))
-                                    Text("Vendedor: ${p.seller}", style = MaterialTheme.typography.bodySmall)
+                                Row(
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    AsyncImage(
+                                        model = p.imageUrl.ifEmpty { "https://via.placeholder.com/60" },
+                                        contentDescription = p.name,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.size(60.dp)
+                                    )
+                                    Spacer(Modifier.width(12.dp))
+                                    Column {
+                                        Text(p.name, style = MaterialTheme.typography.bodyLarge)
+                                        Spacer(Modifier.height(4.dp))
+                                        Text(
+                                            "Vendedor: ${p.seller}",
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -183,6 +201,7 @@ fun OrderDetailScreen(
         }
     }
 }
+
 
 
 

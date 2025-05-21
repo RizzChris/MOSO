@@ -137,22 +137,28 @@ fun ProductDetailScreen(
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     // Chat con vendedor
-                    OutlinedButton(
-                        onClick = {
-                            navController.navigate(Screen.Chat.createRoute(it.sellerId))
-                        },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(8.dp),
-                        contentPadding = PaddingValues(vertical = 12.dp)
-                    ) {
-                        Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            text = "Chat con vendedor",
-                            fontFamily = QuicksandFontFamily,
-                            fontWeight = FontWeight.Bold
-                        )
+                    // Dentro de bottomBar, donde definías el OutlinedButton
+                    val myId = FirebaseAuth.getInstance().currentUser?.uid
+                    if (product!!.sellerId != myId) {
+                        OutlinedButton(
+                            onClick = {
+                                navController.navigate(Screen.Chat.createRoute(product!!.sellerId))
+                            },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(vertical = 12.dp)
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = "Chat con vendedor",
+                                fontFamily = QuicksandFontFamily,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
+// Si sellerId == myId, no mostramos el botón de chat
+
 
                     // Agregar al carrito
                     Button(

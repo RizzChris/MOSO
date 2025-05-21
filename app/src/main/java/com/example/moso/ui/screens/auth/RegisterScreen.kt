@@ -44,17 +44,25 @@ fun RegisterScreen(
     navController: NavController,
     viewModel: AuthViewModel = viewModel()
 ) {
-    var nombre          by remember { mutableStateOf("") }
-    var apellido        by remember { mutableStateOf("") }
-    var email           by remember { mutableStateOf("") }
-    var password        by remember { mutableStateOf("") }
+    var nombre by remember { mutableStateOf("") }
+    var apellido by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
 
+    // Nuevos estados de error
+    var nombreError by remember { mutableStateOf<String?>(null) }
+    var apellidoError by remember { mutableStateOf<String?>(null) }
+    var emailError by remember { mutableStateOf<String?>(null) }
+    var passwordError by remember { mutableStateOf<String?>(null) }
+    var confirmPasswordError by remember { mutableStateOf<String?>(null) }
+
     val isLoading by viewModel.isLoading.collectAsState(initial = false)
-    val error     by viewModel.errorMessage.collectAsState(initial = null)
+    val serverError by viewModel.errorMessage.collectAsState(initial = null)
 
     MOSOTheme {
-        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+        Surface(modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -62,96 +70,171 @@ fun RegisterScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Spacer(Modifier.height(40.dp))
-
                 Image(
                     painter = painterResource(R.drawable.logo),
                     contentDescription = "MOSO Logo",
                     modifier = Modifier.size(80.dp)
                 )
-
                 Spacer(Modifier.height(16.dp))
-
-                Text(
-                    "MOSO",
+                Text("MOSO",
                     style = MaterialTheme.typography.displayLarge,
-                    fontFamily = QuicksandFontFamily
-                )
-                Text(
-                    "Crear cuenta",
+                    fontFamily = QuicksandFontFamily)
+                Text("Crear cuenta",
                     style = MaterialTheme.typography.displayMedium,
-                    fontFamily = QuicksandFontFamily
-                )
-
+                    fontFamily = QuicksandFontFamily)
                 Spacer(Modifier.height(24.dp))
 
+                // Nombre
                 OutlinedTextField(
                     value = nombre,
-                    onValueChange = { nombre = it },
+                    onValueChange = {
+                        nombre = it
+                        nombreError = null
+                    },
                     label = { Text("Nombre") },
+                    isError = nombreError != null,
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
-
+                nombreError?.let {
+                    Text(it, color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier
+                            .align(Alignment.Start)
+                            .padding(start = 16.dp, top = 4.dp))
+                }
                 Spacer(Modifier.height(8.dp))
 
+                // Apellido
                 OutlinedTextField(
                     value = apellido,
-                    onValueChange = { apellido = it },
+                    onValueChange = {
+                        apellido = it
+                        apellidoError = null
+                    },
                     label = { Text("Apellido") },
+                    isError = apellidoError != null,
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
-
+                apellidoError?.let {
+                    Text(it, color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier
+                            .align(Alignment.Start)
+                            .padding(start = 16.dp, top = 4.dp))
+                }
                 Spacer(Modifier.height(8.dp))
 
+                // Email
                 OutlinedTextField(
                     value = email,
-                    onValueChange = { email = it },
+                    onValueChange = {
+                        email = it
+                        emailError = null
+                    },
                     label = { Text("Correo electrónico") },
+                    isError = emailError != null,
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
-
+                emailError?.let {
+                    Text(it, color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier
+                            .align(Alignment.Start)
+                            .padding(start = 16.dp, top = 4.dp))
+                }
                 Spacer(Modifier.height(8.dp))
 
+                // Contraseña
                 OutlinedTextField(
                     value = password,
-                    onValueChange = { password = it },
+                    onValueChange = {
+                        password = it
+                        passwordError = null
+                    },
                     label = { Text("Contraseña") },
+                    isError = passwordError != null,
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
                     modifier = Modifier.fillMaxWidth()
                 )
-
+                passwordError?.let {
+                    Text(it, color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier
+                            .align(Alignment.Start)
+                            .padding(start = 16.dp, top = 4.dp))
+                }
                 Spacer(Modifier.height(8.dp))
 
+                // Confirmar contraseña
                 OutlinedTextField(
                     value = confirmPassword,
-                    onValueChange = { confirmPassword = it },
+                    onValueChange = {
+                        confirmPassword = it
+                        confirmPasswordError = null
+                    },
                     label = { Text("Confirmar contraseña") },
+                    isError = confirmPasswordError != null,
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
                     modifier = Modifier.fillMaxWidth()
                 )
+                confirmPasswordError?.let {
+                    Text(it, color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier
+                            .align(Alignment.Start)
+                            .padding(start = 16.dp, top = 4.dp))
+                }
 
-                error?.let {
+                // Error del servidor
+                serverError?.let {
                     Spacer(Modifier.height(8.dp))
-                    Text(text = it, color = MaterialTheme.colorScheme.error)
+                    Text(it, color = MaterialTheme.colorScheme.error)
                 }
 
                 Spacer(Modifier.height(24.dp))
 
                 Button(
                     onClick = {
-                        // Ajustado a la firma sin callback
-                        viewModel.register(email.trim(), password, nombre, apellido)
+                        // Validaciones
+                        nombreError = if (nombre.isBlank()) "El nombre es obligatorio" else null
+                        apellidoError = if (apellido.isBlank()) "El apellido es obligatorio" else null
+                        emailError = when {
+                            email.isBlank() -> "El correo es obligatorio"
+                            !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches() ->
+                                "Formato de correo inválido"
+                            else -> null
+                        }
+                        passwordError = when {
+                            password.isBlank() -> "La contraseña es obligatoria"
+                            password.length < 6 -> "La contraseña debe tener al menos 6 caracteres"
+                            else -> null
+                        }
+                        confirmPasswordError = when {
+                            confirmPassword.isBlank() -> "Debes confirmar tu contraseña"
+                            confirmPassword != password -> "Las contraseñas no coinciden"
+                            else -> null
+                        }
+
+                        // Si no hay errores, procedemos
+                        if (listOf(
+                                nombreError,
+                                apellidoError,
+                                emailError,
+                                passwordError,
+                                confirmPasswordError
+                            ).all { it == null }
+                        ) {
+                            viewModel.register(email.trim(), password, nombre, apellido)
+                        }
                     },
                     enabled = !isLoading,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
                     shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
                 ) {
                     if (isLoading) {
                         CircularProgressIndicator(

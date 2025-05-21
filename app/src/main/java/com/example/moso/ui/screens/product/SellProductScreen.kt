@@ -57,7 +57,9 @@ import com.example.moso.data.repository.ProductRepository
 import com.example.moso.ui.navigation.Screen
 import com.example.moso.ui.theme.MosoBlue
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import java.util.UUID
 
 @Suppress("DefaultLocale")
@@ -71,7 +73,7 @@ fun SellProductScreen(
     val productRepository = remember { ProductRepository() }
 
     var name by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") } // Nueva variable para descripción
+    var description by remember { mutableStateOf("") }
     var price by remember { mutableStateOf("") }
     var stock by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("") }
@@ -81,12 +83,18 @@ fun SellProductScreen(
     var showErrorMessage by remember { mutableStateOf<String?>(null) }
     var expanded by remember { mutableStateOf(false) }
 
-    val isFormValid = name.isNotBlank() && description.isNotBlank() &&
-            price.toDoubleOrNull() != null && stock.toIntOrNull() != null && category.isNotBlank()
-
-    val imagePicker = rememberLauncherForActivityResult(
+    // 1) Abre picker
+    val imagePickerLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
-    ) { uri -> selectedImageUri = uri }
+    ) { uri: Uri? ->
+        selectedImageUri = uri
+    }
+
+    val isFormValid = name.isNotBlank()
+            && description.isNotBlank()
+            && price.toDoubleOrNull() != null
+            && stock.toIntOrNull() != null
+            && category.isNotBlank()
 
     if (showSuccessDialog) {
         AlertDialog(
@@ -136,7 +144,7 @@ fun SellProductScreen(
                     .height(200.dp)
                     .clip(RoundedCornerShape(8.dp))
                     .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(8.dp))
-                    .clickable { imagePicker.launch("image/*") },
+                    .clickable { imagePickerLauncher.launch("image/*") },
                 contentAlignment = Alignment.Center
             ) {
                 selectedImageUri?.let { uri ->
@@ -233,34 +241,53 @@ fun SellProductScreen(
 
             Button(
                 onClick = {
-                    isSubmitting = true
-                    val user = FirebaseAuth.getInstance().currentUser
-                    if (user == null) {
-                        showErrorMessage = "Inicia sesión para publicar"
-                        isSubmitting = false
-                        return@Button
-                    }
                     scope.launch {
-                        val imageBytes = selectedImageUri?.let { uri ->
-                            context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                        if (FirebaseAuth.getInstance().currentUser == null) {
+                            showErrorMessage = "Inicia sesión para publicar"
+                            return@launch
                         }
-                        val newProduct = Product(
-                            id = UUID.randomUUID().toString(),
-                            name = name,
-                            description = description, // Guarda descripción
-                            price = price.toDouble(),
-                            stock = stock.toInt(),
-                            imageUrl = "",
-                            category = category,
-                            sellerId = user.uid,
-                            sellerName = user.displayName ?: "",
-                            timestamp = System.currentTimeMillis(),
-                            categoryId = category
-                        )
-                        val result = productRepository.addProduct(newProduct, imageBytes)
-                        if (result.isSuccess) showSuccessDialog = true
-                        else showErrorMessage = result.exceptionOrNull()?.message
-                        isSubmitting = false
+                        if (selectedImageUri == null) {
+                            showErrorMessage = "Selecciona una imagen primero"
+                            return@launch
+                        }
+
+                        isSubmitting = true
+                        try {
+                            // Genera nombre único
+                            val filename = "${UUID.randomUUID()}.jpg"
+                            val ref = FirebaseStorage
+                                .getInstance()
+                                .reference
+                                .child("product_images/$filename")
+                            // Sube el archivo
+                            ref.putFile(selectedImageUri!!).await()
+                            // URL pública
+                            val downloadUrl = ref.downloadUrl.await().toString()
+
+                            // Guarda el producto con la URL
+                            val newProduct = Product(
+                                id           = UUID.randomUUID().toString(),
+                                name         = name,
+                                description  = description,
+                                price        = price.toDouble(),
+                                stock        = stock.toInt(),
+                                imageUrl     = downloadUrl,
+                                category     = category,
+                                sellerId     = FirebaseAuth.getInstance().currentUser!!.uid,
+                                sellerName   = FirebaseAuth.getInstance().currentUser!!.displayName
+                                    ?: "",
+                                timestamp    = System.currentTimeMillis(),
+                                categoryId   = category
+                            )
+                            productRepository.addProduct(newProduct, null)
+                                .onSuccess { showSuccessDialog = true }
+                                .onFailure { showErrorMessage = it.message }
+
+                        } catch (e: Exception) {
+                            showErrorMessage = e.message
+                        } finally {
+                            isSubmitting = false
+                        }
                     }
                 },
                 enabled = isFormValid && !isSubmitting,
@@ -269,7 +296,9 @@ fun SellProductScreen(
                     .height(56.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = MosoBlue)
             ) {
-                if (isSubmitting) CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
+                if (isSubmitting)
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp),
+                        color = MaterialTheme.colorScheme.onPrimary)
                 else {
                     Icon(Icons.Default.Check, contentDescription = null)
                     Spacer(Modifier.width(8.dp))

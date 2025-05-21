@@ -78,25 +78,35 @@ fun ChatScreen(
     val listState = rememberLazyListState()
 
     // 1) Crear o recuperar chatId
+    // 1) Crear o recuperar chatId
     LaunchedEffect(userId, me?.uid) {
         me?.uid?.let { myId ->
             val chatRef = firestore.collection("chats")
-            val chatDoc = chatRef.whereArrayContains("participants", myId).whereArrayContains("participants", userId).get().await()
+            // 1. Traemos todos los chats donde yo participo
+            val snapshot = chatRef
+                .whereArrayContains("participants", myId)
+                .get()
+                .await()
 
-            if (chatDoc.isEmpty) {
-                // Si no existe el chat, crearlo
+            // 2. Buscamos en memoria el que también tenga al otro usuario
+            val existing = snapshot.documents.firstOrNull { doc ->
+                (doc.get("participants") as? List<String>)?.contains(userId) == true
+            }
+
+            if (existing == null) {
+                // 3a. Si no existe, lo creamos
                 val newChatRef = chatRef.add(mapOf(
                     "participants" to listOf(myId, userId),
                     "messages" to emptyList<Message>()
                 )).await()
-
                 chatId = newChatRef.id
             } else {
-                // Si ya existe el chat
-                chatId = chatDoc.documents[0].id
+                // 3b. Si existe, reusamos su ID
+                chatId = existing.id
             }
         }
     }
+
 
     // 2) Cargar y escuchar mensajes
     LaunchedEffect(chatId) {

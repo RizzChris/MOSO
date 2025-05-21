@@ -20,6 +20,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SmallTopAppBar
 import androidx.compose.material3.Text
@@ -33,10 +34,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.example.moso.ui.auth.AuthViewModel
 import com.example.moso.ui.components.AppDrawerContent
 import com.example.moso.ui.screens.auth.LoginScreen
@@ -47,10 +50,12 @@ import com.example.moso.ui.screens.chat.ChatListScreen
 import com.example.moso.ui.screens.chat.ChatScreen
 import com.example.moso.ui.screens.home.HomeScreen
 import com.example.moso.ui.screens.order.OrderDetailScreen
+import com.example.moso.ui.screens.payment.ProcessingScreen
 import com.example.moso.ui.screens.product.ProductDetailScreen
 import com.example.moso.ui.screens.product.SellProductScreen
 import com.example.moso.ui.screens.profile.ProfileScreen
 import com.example.moso.ui.screens.purchases.PurchasesScreen
+import com.example.moso.ui.screens.sales.SalesScreen
 import com.example.moso.ui.screens.search.SearchScreen
 import com.example.moso.ui.screens.settings.SettingsScreen
 import com.example.moso.ui.theme.MosoBlue
@@ -118,38 +123,63 @@ fun AppNavigation(authViewModel: AuthViewModel = viewModel()) {
                 )
             },
             bottomBar = {
-                val current = navController.currentBackStackEntryAsState().value?.destination?.route
-                NavigationBar {
+                val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
+                NavigationBar(
+                    containerColor = MosoBlue,    // Fondo azul MOSO
+                    contentColor   = Color.White  // Íconos y texto en blanco
+                ) {
                     NavigationBarItem(
-                        icon    = { Icon(Icons.Default.Home, contentDescription = "Inicio") },
-                        label   = { Text("Inicio") },
-                        selected= current == Screen.Home.route,
+                        icon = { Icon(Icons.Default.Home, contentDescription = "Inicio") },
+                        label = { Text("Inicio") },
+                        selected = currentRoute == Screen.Home.route,
                         onClick = {
                             navController.navigate(Screen.Home.route) {
                                 popUpTo(Screen.Home.route) { inclusive = true }
                             }
-                        }
+                        },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor   = Color.White,
+                            unselectedIconColor = Color.White.copy(alpha = 0.7f),
+                            selectedTextColor   = Color.White,
+                            unselectedTextColor = Color.White.copy(alpha = 0.7f)
+                        )
                     )
                     NavigationBarItem(
-                        icon    = { Icon(Icons.Default.Person, contentDescription = "Perfil") },
-                        label   = { Text("Perfil") },
-                        selected= current == Screen.Profile.route,
-                        onClick = { navController.navigate(Screen.Profile.route) }
+                        icon = { Icon(Icons.Default.Person, contentDescription = "Perfil") },
+                        label = { Text("Perfil") },
+                        selected = currentRoute == Screen.Profile.route,
+                        onClick = { navController.navigate(Screen.Profile.route) },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor   = Color.White,
+                            unselectedIconColor = Color.White.copy(alpha = 0.7f),
+                            selectedTextColor   = Color.White,
+                            unselectedTextColor = Color.White.copy(alpha = 0.7f)
+                        )
                     )
                     NavigationBarItem(
-                        icon    = { Icon(Icons.Default.ShoppingCart, contentDescription = "Compras") },
-                        label   = { Text("Compras") },
-                        selected= current == Screen.Purchases.route,
-                        onClick = { navController.navigate(Screen.Purchases.route) }
+                        icon = { Icon(Icons.Default.ShoppingCart, contentDescription = "Compras") },
+                        label = { Text("Compras") },
+                        selected = currentRoute == Screen.Purchases.route,
+                        onClick = { navController.navigate(Screen.Purchases.route) },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor   = Color.White,
+                            unselectedIconColor = Color.White.copy(alpha = 0.7f),
+                            selectedTextColor   = Color.White,
+                            unselectedTextColor = Color.White.copy(alpha = 0.7f)
+                        )
                     )
-
                     NavigationBarItem(
                         icon = { Icon(Icons.Default.ChatBubble, contentDescription = "Chat") },
                         label = { Text("Chat") },
-                        selected = current == Screen.ChatList.route,
-                        onClick = { navController.navigate(Screen.ChatList.route) }
+                        selected = currentRoute == Screen.ChatList.route,
+                        onClick = { navController.navigate(Screen.ChatList.route) },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor   = Color.White,
+                            unselectedIconColor = Color.White.copy(alpha = 0.7f),
+                            selectedTextColor   = Color.White,
+                            unselectedTextColor = Color.White.copy(alpha = 0.7f)
+                        )
                     )
-
                 }
             }
         ) { inner ->
@@ -182,10 +212,8 @@ fun AppNavigation(authViewModel: AuthViewModel = viewModel()) {
                     }
                     composable(Screen.SellProduct.route)  { SellProductScreen(navController) }
                     composable(Screen.Cart.route)         { CartScreen(navController) }
-                    composable(Screen.ChatList.route)     { ChatListScreen(navController) }
-                    composable(Screen.Chat.route) { back ->
-                        val uid = back.arguments?.getString("userId") ?: return@composable
-                        ChatScreen(uid, navController)
+                    composable(Screen.ChatList.route) {
+                        ChatListScreen(navController)
                     }
                     composable(Screen.Search.route) {
                         SearchScreen(navController)
@@ -206,6 +234,10 @@ fun AppNavigation(authViewModel: AuthViewModel = viewModel()) {
                         ProfileScreen { navController.navigateUp() }
                     }
 
+                    // Ruta para las compras
+                    composable(Screen.Sales.route) {
+                        SalesScreen(navController)
+                    }
 
 
                     // Aquí va tu pantalla de detalle:
@@ -214,32 +246,23 @@ fun AppNavigation(authViewModel: AuthViewModel = viewModel()) {
                         OrderDetailScreen(orderId, navController)
                     }
 
+                    composable(
+                        route = Screen.Chat.route,
+                        arguments = listOf(navArgument("userId") {
+                            type = NavType.StringType
+                        })
+                    ) { backStack ->
+                        val userId = backStack.arguments?.getString("userId")?: return@composable
+                        ChatScreen(userId, navController)
+                    }
+                    composable(Screen.Processing.route) {
+                        ProcessingScreen(navController)
+                    }
+
+
                 }
             }
         }
     }
 }
 
-
-
-
-
-
-// estas rutas las agregue para despues porque no se si las vaya a ocupar
-// venta de componente
-//composable(Screen.SellProduct.route) {
-//    SellProductScreen(navController)
-//}
-//+  // carrito
-//+  composable(Screen.Cart.route) {
-//    +     CartScreen(navController)
-//    +  }
-//+  // lista de chats (opcional)
-//+  composable(Screen.ChatList.route) {
-//    +     ChatListScreen(navController)
-//    +  }
-//// chat 1:1 con parámetro
-//composable(Screen.Chat.route) { back ->
-//    val uid = back.arguments?.getString("userId") ?: ""
-//    ChatScreen(uid, navController)
-//}

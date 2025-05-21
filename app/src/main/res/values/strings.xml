@@ -1,3 +1,8 @@
 <resources>
     <string name="app_name">MOSO</string>
+    <string name="default_web_client_id">431246639476-o15fef5gqjo28n38u90ne89a1mv7m8il.apps.googleusercontent.com</string>
+    <!-- Facebook App ID (sin el prefijo 'fb') -->
+    <string name="facebook_app_id">123456789012345</string>
+    <!-- Facebook Client Token (opcional, si lo necesitas) -->
+    <string name="facebook_client_token">ABCDE12345fghiJKL67890mnop</string>
 </resources>

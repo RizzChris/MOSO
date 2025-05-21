@@ -25,7 +25,7 @@ object ProductCategories {
     const val SENSORS = "Sensores"
     const val DISPLAYS = "Displays"
     const val CONNECTORS = "Conectores"
-    const val POWER_SUPPLIES = "Fuentes de Alimentación"
+    const val POWER_SUPPLIES = "Fuentes de Alimentacion"
     const val OTHER = "Otros"
 
     val allCategories = listOf(

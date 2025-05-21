@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -56,6 +55,8 @@ import com.example.moso.ui.theme.AccentOrange
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.tasks.await
+import java.text.Normalizer
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -103,7 +104,7 @@ fun HomeScreen(
         "DISPLAYS" to R.drawable.displays,
         "CONECTORES" to R.drawable.conectores,
         "FUENTES DE ALIMENTACION" to R.drawable.fuentes_de_alimentacion,
-        "OTRO" to R.drawable.otro
+        "OTROS" to R.drawable.otro
     )
 
     // — Datos del carrusel —
@@ -262,7 +263,17 @@ fun HomeScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxSize()
         ) {
-            items(ProductCategories.allCategories) { cat ->
+                // Función auxiliar para quitar tildes
+                fun String.removeAccents(): String =
+                    Normalizer.normalize(this, Normalizer.Form.NFD)
+                        .replace(Regex("\\p{M}"), "")
+
+                items(ProductCategories.allCategories) { cat ->
+                    // 1) preparar clave
+                    val key = cat
+                        .trim()
+                        .removeAccents()
+                        .uppercase(Locale.getDefault())
                 val count = countsByCat[cat] ?: 0
                 val imgRes = categoryImageMap[cat.uppercase()] ?: R.drawable.placeholder
 
@@ -271,48 +282,65 @@ fun HomeScreen(
                         .aspectRatio(1f)
                         .clickable { onNavigateToCatalog(cat.uppercase()) },
                     shape = RoundedCornerShape(12.dp),
-                    elevation = CardDefaults.cardElevation(2.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                     colors = CardDefaults.cardColors(containerColor = Color(0xFFF2ECF7))
                 ) {
                     Column(
                         Modifier
                             .fillMaxSize()
-                            .padding(8.dp),
+                            .padding(0.dp),  // ya no necesitamos padding aquí
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Top
                     ) {
+                        // 1) Imagen ocupa todo el espacio posible
                         Image(
                             painter = painterResource(id = imgRes),
                             contentDescription = cat,
-                            contentScale = ContentScale.Fit,
-                            modifier = Modifier.size(80.dp)
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
                         )
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            cat.uppercase(),
-                            style = MaterialTheme.typography.bodyMedium,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        if (count > 0) {
-                            Text(
-                                "$count productos",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = AccentOrange,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.fillMaxWidth()
-                            )
+
+                        // 2) Pie de texto con fondo blanco y esquinas redondeadas
+                        Surface(
+                            color = Color.White,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(56.dp),
+                            tonalElevation = 2.dp,
+                            shape = RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp)
+                        ) {
+                            Column(
+                                Modifier
+                                    .fillMaxSize()
+                                    .padding(horizontal = 6.dp),
+                                verticalArrangement = Arrangement.Center,
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = cat.uppercase(),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                    textAlign = TextAlign.Center,
+                                )
+                                if (count > 0) {
+                                    Text(
+                                        text = "$count productos",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = AccentOrange,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier.padding(top = 2.dp)
+                                    )
+                                }
+                            }
                         }
                     }
                 }
             }
         }
     }
-}
-
-
-
+    }
 
 

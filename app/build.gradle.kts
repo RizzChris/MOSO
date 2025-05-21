@@ -3,6 +3,7 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.gms.google-services")
+
 }
 
 android {
@@ -80,7 +81,14 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 
-    // Material Icons Extended (para Icons.Default.ChatBubble, etc)
-    implementation("androidx.compose.material:material-icons-extended:1.4.4")
+    // Firebase Auth ya lo tienes
+    implementation ("com.google.android.gms:play-services-auth:21.3.0")      // Para Google Sign-In
+    // Para Google Sign-In
+    implementation("com.facebook.android:facebook-login:15.2.0")
 
+    // Material Icons Extended …
+    implementation("androidx.compose.material:material-icons-extended:1.4.4")
+    implementation("androidx.datastore:datastore-preferences:1.0.0")
 }
+
+

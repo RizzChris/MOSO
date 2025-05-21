@@ -12,8 +12,9 @@ sealed class Screen(val route: String) {
     }
     object SellProduct   : Screen("sell_product")
     object Cart          : Screen("cart")
-    object ChatList      : Screen("chat_list")
-    object Chat          : Screen("chat/{userId}") {
+    object ChatList : Screen("chats")
+    // ui/navigation/Screen.kt
+    object Chat : Screen("chat/{userId}") {
         fun createRoute(userId: String) = "chat/$userId"
     }
     object Search        : Screen("search")
@@ -24,6 +25,8 @@ sealed class Screen(val route: String) {
         fun createRoute(orderId: String) = "order_detail/$orderId"
     }
     object Sales      : Screen("sales")
+    object Processing : Screen("processing")
+
 }
 
 

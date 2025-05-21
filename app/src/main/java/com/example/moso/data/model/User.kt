@@ -5,7 +5,7 @@ data class User(
     val name: String = "",
     val lastName: String = "",
     val email: String = "",
-    val photoUrl: String = "",
+    val photoUrl: String? = null ,
     val productsForSale: List<String> = emptyList(),
     val recentPurchases: List<String> = emptyList()
 )
