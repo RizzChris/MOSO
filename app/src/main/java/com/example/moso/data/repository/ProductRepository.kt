@@ -1,116 +1,125 @@
 package com.example.moso.data.repository
 
+import android.net.Uri
 import com.example.moso.data.model.Product
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.tasks.await
-import java.util.UUID
 
+/**
+ * Repositorio para operaciones CRUD de productos,
+ * incluyendo subida de imagen a Firebase Storage.
+ */
 class ProductRepository {
     private val firestore = FirebaseFirestore.getInstance()
-    private val storage = FirebaseStorage.getInstance()
     private val productsCollection = firestore.collection("products")
+    private val storageRef = FirebaseStorage.getInstance().reference
 
+    /**
+     * Añade o actualiza un producto. Si `imageUri` no es nulo, sube primero la imagen y
+     * actualiza el campo `imageUrl` con la URL pública.
+     */
+    suspend fun addProduct(product: Product, imageUri: Uri?): Result<Unit> {
+        return try {
+            // Si hay URI de imagen, súbela y obtén URL
+            val imageUrl = imageUri?.let { uri ->
+                // Incluye extensión .jpg para consistencia
+                val path = "product_images/${product.id}.jpg"
+                val ref = storageRef.child(path)
+                // Sube archivo y espera
+                ref.putFile(uri).await()
+                // Obtén URL pública
+                ref.downloadUrl.await().toString()
+            } ?: product.imageUrl
+
+            // Copia modelo con URL definitiva
+            val prodWithUrl = product.copy(imageUrl = imageUrl)
+
+            // Guarda en Firestore (crea o actualiza)
+            productsCollection.document(prodWithUrl.id)
+                .set(prodWithUrl)
+                .await()
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Obtiene todos los productos, ordenados por fecha de creación descendente.
+     */
     suspend fun getAllProducts(): Result<List<Product>> {
         return try {
-            val querySnapshot = productsCollection
+            val snap = productsCollection
                 .orderBy("timestamp", Query.Direction.DESCENDING)
                 .get()
                 .await()
-
-            val products = querySnapshot.documents.mapNotNull { document ->
-                document.toObject(Product::class.java)
-            }
-
-            Result.success(products)
+            val list = snap.documents
+                .mapNotNull { it.toObject(Product::class.java)?.copy(id = it.id) }
+            Result.success(list)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    suspend fun getProductsByCategory(category: String): Result<List<Product>> {
+    /**
+     * Filtra productos por categoríaId.
+     */
+    suspend fun getProductsByCategory(categoryId: String): Result<List<Product>> {
         return try {
-            val querySnapshot = productsCollection
-                .whereEqualTo("category", category)
+            val snap = productsCollection
+                .whereEqualTo("categoryId", categoryId)
                 .orderBy("timestamp", Query.Direction.DESCENDING)
                 .get()
                 .await()
-
-            val products = querySnapshot.documents.mapNotNull { document ->
-                document.toObject(Product::class.java)
-            }
-
-            Result.success(products)
+            val list = snap.documents
+                .mapNotNull { it.toObject(Product::class.java)?.copy(id = it.id) }
+            Result.success(list)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
+    /**
+     * Busca productos cuyo nombre o descripción contengan el texto (sin subidas).
+     */
     suspend fun searchProducts(query: String): Result<List<Product>> {
         return try {
-            // Firebase Firestore no soporta búsquedas de texto completo nativamente
-            // Esta es una implementación simple que busca coincidencias exactas
-            val querySnapshot = productsCollection
+            val snap = productsCollection
                 .orderBy("name")
                 .get()
                 .await()
-
-            val products = querySnapshot.documents.mapNotNull { document ->
-                document.toObject(Product::class.java)
-            }.filter { product ->
-                product.name.contains(query, ignoreCase = true) ||
-                        product.description.contains(query, ignoreCase = true)
-            }
-
-            Result.success(products)
+            val filtered = snap.documents
+                .mapNotNull { it.toObject(Product::class.java)?.copy(id = it.id) }
+                .filter { p ->
+                    p.name.contains(query, ignoreCase = true)
+                            || p.description.contains(query, ignoreCase = true)
+                }
+            Result.success(filtered)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    suspend fun getProductById(productId: String): Result<Product> {
+    /**
+     * Obtiene un producto por su ID.
+     */
+    suspend fun getProductById(id: String): Result<Product> {
         return try {
-            val documentSnapshot = productsCollection.document(productId).get().await()
-            val product = documentSnapshot.toObject(Product::class.java)
+            val doc = productsCollection.document(id).get().await()
+            val product = doc.toObject(Product::class.java)?.copy(id = id)
                 ?: throw Exception("Producto no encontrado")
-
             Result.success(product)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    suspend fun addProduct(product: Product, imageByteArray: ByteArray?): Result<String> {
-        return try {
-            // Si hay una imagen, subir a Firebase Storage
-            val imageUrl = if (imageByteArray != null) {
-                val imageName = "${UUID.randomUUID()}.jpg"
-                val storageRef = storage.reference.child("product_images/$imageName")
-                storageRef.putBytes(imageByteArray).await()
-                storageRef.downloadUrl.await().toString()
-            } else {
-                ""
-            }
-
-            // Crear un nuevo documento en Firestore con un ID generado
-            val productId = productsCollection.document().id
-
-            // Crear el producto final con la URL de la imagen
-            val finalProduct = product.copy(
-                id = productId,
-                imageUrl = imageUrl
-            )
-
-            // Guardar el producto en Firestore
-            productsCollection.document(productId).set(finalProduct).await()
-
-            Result.success(productId)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
+    /**
+     * Actualiza un producto existente (sin manejar imagen).
+     */
     suspend fun updateProduct(product: Product): Result<Unit> {
         return try {
             productsCollection.document(product.id).set(product).await()
@@ -120,13 +129,34 @@ class ProductRepository {
         }
     }
 
+    suspend fun getProductsBySeller(sellerId: String): Result<List<Product>> {
+        return try {
+            val snap = firestore.collection("products")
+                .whereEqualTo("sellerId", sellerId)
+                .get().await()
+            val list = snap.documents.mapNotNull { it.toObject(Product::class.java)?.copy(id = it.id) }
+            Result.success(list)
+        } catch(e:Exception) {
+            Result.failure(e)
+        }
+    }
+
+
+    /**
+     * Elimina un producto (y su imagen en Storage).
+     */
     suspend fun deleteProduct(productId: String): Result<Unit> {
         return try {
+            // Borra documento
             productsCollection.document(productId).delete().await()
+            // Borra imagen asociada
+            val imgRef = storageRef.child("product_images/$productId.jpg")
+            imgRef.delete().await()
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 }
+
 

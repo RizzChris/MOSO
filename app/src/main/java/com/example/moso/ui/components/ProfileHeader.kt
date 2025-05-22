@@ -26,9 +26,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.moso.ui.screens.profile.MosoBlue
-import com.example.moso.ui.screens.profile.MosoBlueDark
-import com.example.moso.ui.screens.profile.MosoWhite
+import com.example.moso.ui.theme.MosoBlue
+import com.example.moso.ui.theme.MosoBlueDark
+import com.example.moso.ui.theme.MosoWhite
 import com.example.moso.ui.theme.QuicksandFontFamily
 
 @Composable

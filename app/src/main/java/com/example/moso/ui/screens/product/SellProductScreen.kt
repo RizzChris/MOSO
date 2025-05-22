@@ -25,7 +25,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -53,13 +52,11 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.moso.data.model.Product
+import com.example.moso.data.model.ProductCategories
 import com.example.moso.data.repository.ProductRepository
 import com.example.moso.ui.navigation.Screen
-import com.example.moso.ui.theme.MosoBlue
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 import java.util.UUID
 
 @Suppress("DefaultLocale")
@@ -203,11 +200,8 @@ fun SellProductScreen(
                     expanded = expanded,
                     onDismissRequest = { expanded = false }
                 ) {
-                    val categories = listOf(
-                        "RESISTENCIAS", "CAPACITORES", "CIRCUITOS INTEGRADOS",
-                        "TRANSISTORES", "DIODOS", "SENSORES", "DISPLAYS",
-                        "FUENTES DE ALIMENTACION", "Otros"
-                    )
+                    val categories = ProductCategories.allCategories
+
                     categories.forEach { cat ->
                         DropdownMenuItem(text = { Text(cat) }, onClick = {
                             category = cat
@@ -239,63 +233,53 @@ fun SellProductScreen(
                 Text(text = msg, color = MaterialTheme.colorScheme.error)
             }
 
-            Button(
-                onClick = {
-                    scope.launch {
-                        if (FirebaseAuth.getInstance().currentUser == null) {
-                            showErrorMessage = "Inicia sesión para publicar"
-                            return@launch
-                        }
-                        if (selectedImageUri == null) {
-                            showErrorMessage = "Selecciona una imagen primero"
-                            return@launch
-                        }
+             Button(
+                   onClick = {
+                         scope.launch {
+                               // Validaciones
+                               val user = FirebaseAuth.getInstance().currentUser
+                               if (user == null) {
+                                     showErrorMessage = "Inicia sesión para publicar"
+                                     return@launch
+                                   }
+                               if (selectedImageUri == null) {
+                                     showErrorMessage = "Selecciona una imagen primero"
+                                     return@launch
+                                   }
 
-                        isSubmitting = true
-                        try {
-                            // Genera nombre único
-                            val filename = "${UUID.randomUUID()}.jpg"
-                            val ref = FirebaseStorage
-                                .getInstance()
-                                .reference
-                                .child("product_images/$filename")
-                            // Sube el archivo
-                            ref.putFile(selectedImageUri!!).await()
-                            // URL pública
-                            val downloadUrl = ref.downloadUrl.await().toString()
+                               isSubmitting = true
+                               // Lee bytes de la imagen seleccionada
+                               val imageBytes = context.contentResolver
+                                 .openInputStream(selectedImageUri!!)
+                                 ?.use { it.readBytes() }
 
-                            // Guarda el producto con la URL
-                            val newProduct = Product(
-                                id           = UUID.randomUUID().toString(),
-                                name         = name,
-                                description  = description,
-                                price        = price.toDouble(),
-                                stock        = stock.toInt(),
-                                imageUrl     = downloadUrl,
-                                category     = category,
-                                sellerId     = FirebaseAuth.getInstance().currentUser!!.uid,
-                                sellerName   = FirebaseAuth.getInstance().currentUser!!.displayName
-                                    ?: "",
-                                timestamp    = System.currentTimeMillis(),
-                                categoryId   = category
-                            )
-                            productRepository.addProduct(newProduct, null)
-                                .onSuccess { showSuccessDialog = true }
-                                .onFailure { showErrorMessage = it.message }
+                               // Crea el modelo (imageUrl aún vacío)
+                              val newProduct = Product(
+                                     id           = UUID.randomUUID().toString(),
+                                     name         = name,
+                                     description  = description,
+                                     price        = price.toDouble(),
+                                     stock        = stock.toInt(),
+                                     imageUrl     = "",
+                                     category     = category,
+                                     sellerId     = user.uid,
+                                     sellerName   = user.displayName ?: "",
+                                     timestamp    = System.currentTimeMillis(),
+                                  categoryId = category.uppercase()
+                                          )
 
-                        } catch (e: Exception) {
-                            showErrorMessage = e.message
-                        } finally {
-                            isSubmitting = false
-                        }
-                    }
-                },
-                enabled = isFormValid && !isSubmitting,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MosoBlue)
-            ) {
+                               // Delega al repositorio
+                               productRepository
+                                   .addProduct(newProduct, selectedImageUri)
+                                 .onSuccess { showSuccessDialog = true }
+                                 .onFailure { showErrorMessage = it.message }
+
+                               isSubmitting = false
+                             }
+                       },
+                   enabled = isFormValid && !isSubmitting,
+                   /* … resto de props (colores, tamaños) … */
+                 ) {
                 if (isSubmitting)
                     CircularProgressIndicator(modifier = Modifier.size(24.dp),
                         color = MaterialTheme.colorScheme.onPrimary)

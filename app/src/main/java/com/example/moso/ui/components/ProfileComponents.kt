@@ -31,11 +31,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.example.moso.ui.screens.profile.MosoBlue
-import com.example.moso.ui.screens.profile.MosoBlueDark
-import com.example.moso.ui.screens.profile.MosoBrown
-import com.example.moso.ui.screens.profile.MosoGray
 import com.example.moso.ui.screens.profile.RecentOrder
+import com.example.moso.ui.theme.MosoBlue
+import com.example.moso.ui.theme.MosoBlueDark
+import com.example.moso.ui.theme.MosoBrown
+import com.example.moso.ui.theme.MosoGray
 import com.example.moso.ui.theme.QuicksandFontFamily
 
 

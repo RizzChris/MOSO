@@ -51,6 +51,8 @@ import com.example.moso.ui.screens.chat.ChatScreen
 import com.example.moso.ui.screens.home.HomeScreen
 import com.example.moso.ui.screens.order.OrderDetailScreen
 import com.example.moso.ui.screens.payment.ProcessingScreen
+import com.example.moso.ui.screens.posts.PostsScreen
+import com.example.moso.ui.screens.product.EditProductScreen
 import com.example.moso.ui.screens.product.ProductDetailScreen
 import com.example.moso.ui.screens.product.SellProductScreen
 import com.example.moso.ui.screens.profile.ProfileScreen
@@ -60,6 +62,7 @@ import com.example.moso.ui.screens.search.SearchScreen
 import com.example.moso.ui.screens.settings.SettingsScreen
 import com.example.moso.ui.theme.MosoBlue
 import kotlinx.coroutines.launch
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -218,33 +221,48 @@ fun AppNavigation(authViewModel: AuthViewModel = viewModel()) {
                     composable(Screen.Search.route) {
                         SearchScreen(navController)
                     }
-                    composable(Screen.Profile.route) { ProfileScreen { navController.navigateUp() } }
+                    composable(Screen.Profile.route) {
+                        ProfileScreen(
+                            navController = navController,
+                            onNavigateUp = { navController.navigateUp() }
+                        )
+                    }
+
                     composable(Screen.Purchases.route) { PurchasesScreen(navController) }
                     // Ruta para las compras
                     composable(Screen.Settings.route){ SettingsScreen(navController) }
-                    composable(Screen.OrderDetail.route) { back ->
-                        val oid = back.arguments?.getString("orderId") ?: return@composable
-                        OrderDetailScreen(oid, navController)
-                    }
-                    composable(Screen.OrderDetail.route) { back ->
-                        val orderId = back.arguments?.getString("orderId") ?: return@composable
+
+                    composable(
+                        route = Screen.OrderDetail.route,
+                        arguments = listOf(navArgument("orderId") { type = NavType.StringType })
+                    ) { backStackEntry ->
+                        val orderId = backStackEntry.arguments!!.getString("orderId")!!
                         OrderDetailScreen(orderId, navController)
-                    }
-                    composable(Screen.Profile.route) {
-                        ProfileScreen { navController.navigateUp() }
                     }
 
                     // Ruta para las compras
                     composable(Screen.Sales.route) {
                         SalesScreen(navController)
                     }
-
-
-                    // Aquí va tu pantalla de detalle:
-                    composable(Screen.OrderDetail.route) { back ->
-                        val orderId = back.arguments?.getString("orderId") ?: return@composable
-                        OrderDetailScreen(orderId, navController)
+                    // nueva ruta para editar
+                    composable(
+                        route = Screen.EditProduct.route,
+                        arguments = listOf(navArgument("productId") { type = NavType.StringType })
+                    ) { backStackEntry ->
+                        val productId = backStackEntry.arguments!!.getString("productId")!!
+                        EditProductScreen(productId = productId, navController = navController)
                     }
+
+
+                    composable(
+                        route = Screen.Chat.route,
+                        arguments = listOf(navArgument("userId") { type = NavType.StringType })
+                    ) { backStackEntry ->
+                        ChatScreen(backStackEntry.arguments!!.getString("userId")!!, navController)
+                    }
+
+
+
 
                     composable(
                         route = Screen.Chat.route,
@@ -258,7 +276,9 @@ fun AppNavigation(authViewModel: AuthViewModel = viewModel()) {
                     composable(Screen.Processing.route) {
                         ProcessingScreen(navController)
                     }
-
+                    composable(Screen.Posts.route) {
+                        PostsScreen(navController)
+                    }
 
                 }
             }

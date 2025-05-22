@@ -17,28 +17,20 @@ data class Product(
 
 // Categorías de productos
 object ProductCategories {
-    const val RESISTORS = "Resistencias"
-    const val CAPACITORS = "Capacitores"
-    const val INTEGRATED_CIRCUITS = "Circuitos Integrados"
-    const val TRANSISTORS = "Transistores"
-    const val DIODES = "Diodos"
-    const val SENSORS = "Sensores"
-    const val DISPLAYS = "Displays"
-    const val CONNECTORS = "Conectores"
-    const val POWER_SUPPLIES = "Fuentes de Alimentacion"
-    const val OTHER = "Otros"
+    const val RESISTORS          = "RESISTENCIAS"
+    const val CAPACITORS         = "CAPACITORES"
+    const val INTEGRATED_CIRCUITS= "CIRCUITOS INTEGRADOS"
+    const val TRANSISTORS        = "TRANSISTORES"
+    const val DIODES             = "DIODOS"
+    const val SENSORS            = "SENSORES"
+    const val DISPLAYS           = "DISPLAYS"
+    const val CONNECTORS         = "CONECTORES"            // ← cambia aquí
+    const val POWER_SUPPLIES     = "FUENTES DE ALIMENTACION"
+    const val OTHER              = "OTROS"                 // ← y aquí
 
     val allCategories = listOf(
-        RESISTORS,
-        CAPACITORS,
-        INTEGRATED_CIRCUITS,
-        TRANSISTORS,
-        DIODES,
-        SENSORS,
-        DISPLAYS,
-        CONNECTORS,
-        POWER_SUPPLIES,
-        OTHER
+        RESISTORS, CAPACITORS, INTEGRATED_CIRCUITS, TRANSISTORS,
+        DIODES, SENSORS, DISPLAYS, CONNECTORS, POWER_SUPPLIES, OTHER
     )
 }
 

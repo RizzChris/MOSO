@@ -72,7 +72,6 @@ fun PurchasesScreen(
                 orders = snap.documents.mapNotNull { doc ->
                     val ts = doc.getLong("timestamp") ?: return@mapNotNull null
                     val date = dateFmt.format(Date(ts))
-                    // Leer categoría del primer producto de la orden
                     val raw = doc.get("products") as? List<Map<String, Any>> ?: emptyList()
                     val firstCat = if (raw.isNotEmpty()) {
                         firestore.collection("products")
@@ -106,13 +105,26 @@ fun PurchasesScreen(
         Box(Modifier.fillMaxSize().padding(padding)) {
             when {
                 isLoading -> Text("Cargando...", Modifier.align(Alignment.Center))
-                error != null -> Text(text = error!!, color = MaterialTheme.colorScheme.error, modifier = Modifier.align(Alignment.Center))
-                orders.isEmpty() -> Text("No has realizado compras aún", Modifier.align(Alignment.Center))
+                error != null -> Text(
+                    text = error!!,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.align(Alignment.Center)
+                )
+                orders.isEmpty() -> Text(
+                    "No has realizado compras aún",
+                    Modifier.align(Alignment.Center)
+                )
                 else -> LazyColumn(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(orders) { order ->
+                        // Acortamos el folio a 8 caracteres
+                        val shortFolio = if (order.id.length > 8)
+                            order.id.take(8) + "…"
+                        else
+                            order.id
+
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -130,10 +142,19 @@ fun PurchasesScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Column {
-                                    Text("Folio: ${order.id}", style = MaterialTheme.typography.bodyMedium)
-                                    Text("Compraste: ${order.category}", style = MaterialTheme.typography.bodySmall)
+                                    Text(
+                                        "Folio: $shortFolio",
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                    Text(
+                                        "Compraste: ${order.category}",
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
                                 }
-                                Text(order.date, style = MaterialTheme.typography.bodySmall)
+                                Text(
+                                    order.date,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
                             }
                         }
                     }
@@ -142,5 +163,6 @@ fun PurchasesScreen(
         }
     }
 }
+
 
 

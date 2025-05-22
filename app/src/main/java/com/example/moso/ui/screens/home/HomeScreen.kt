@@ -58,6 +58,7 @@ import kotlinx.coroutines.tasks.await
 import java.text.Normalizer
 import java.util.Locale
 
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
@@ -303,6 +304,7 @@ fun HomeScreen(
                         )
 
                         // 2) Pie de texto con fondo blanco y esquinas redondeadas
+                        // 2) Pie de texto con AutoSizeText para que el nombre siempre quepa en una línea
                         Surface(
                             color = Color.White,
                             modifier = Modifier
@@ -320,10 +322,11 @@ fun HomeScreen(
                             ) {
                                 Text(
                                     text = cat.uppercase(),
+                                    modifier = Modifier.fillMaxWidth(),
                                     style = MaterialTheme.typography.bodyMedium,
-                                    maxLines = 2,
+                                    maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
-                                    textAlign = TextAlign.Center,
+                                    textAlign = TextAlign.Center
                                 )
                                 if (count > 0) {
                                     Text(
@@ -336,6 +339,7 @@ fun HomeScreen(
                                 }
                             }
                         }
+
                     }
                 }
             }

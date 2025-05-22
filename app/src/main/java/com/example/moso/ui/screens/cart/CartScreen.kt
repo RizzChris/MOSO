@@ -1,4 +1,3 @@
-// app/src/main/java/com/example/moso/ui/screens/cart/CartScreen.kt
 package com.example.moso.ui.screens.cart
 
 import androidx.compose.foundation.layout.Arrangement
@@ -37,6 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -51,28 +51,24 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CartScreen(navController: NavController) {
-    val uid = FirebaseAuth.getInstance().currentUser?.uid
-        ?: return  // si no hay usuario, salimos
+    val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
     val db = FirebaseFirestore.getInstance()
     val productRepo = remember { ProductRepository() }
     val scope = rememberCoroutineScope()
 
-    // 1️⃣ Modelo local: carrito con detalle de producto
-    data class CartItemDetail(
-        val product: Product,
-        val quantity: Int
-    )
+    data class CartItemDetail(val product: Product, val quantity: Int)
 
     var items by remember { mutableStateOf<List<CartItemDetail>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     var isProcessing by remember { mutableStateOf(false) }
 
-    // 2️⃣ Carga del carrito y detalles
+    // Carga el carrito y sus productos
     LaunchedEffect(uid) {
         try {
             val cartDoc = db.collection("cart").document(uid).get().await()
@@ -90,7 +86,6 @@ fun CartScreen(navController: NavController) {
                     }
                 }.awaitAll().filterNotNull()
             }
-
             items = loaded
             error = null
         } catch (e: Exception) {
@@ -100,10 +95,8 @@ fun CartScreen(navController: NavController) {
         }
     }
 
-    // 3️⃣ Cálculo del total
-    val total = remember(items) {
-        items.sumOf { it.product.price * it.quantity }
-    }
+    // Total
+    val total by remember(items) { mutableStateOf(items.sumOf { it.product.price * it.quantity }) }
 
     Scaffold(
         topBar = {
@@ -118,7 +111,6 @@ fun CartScreen(navController: NavController) {
         },
         bottomBar = {
             if (items.isNotEmpty()) {
-                // Muestro el total y el botón de compra
                 Column {
                     Text(
                         "Total: $${"%.2f".format(total)}",
@@ -127,17 +119,46 @@ fun CartScreen(navController: NavController) {
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp, vertical = 8.dp),
-                        textAlign = androidx.compose.ui.text.style.TextAlign.End
+                        textAlign = TextAlign.End
                     )
                     Button(
                         onClick = {
                             scope.launch {
                                 isProcessing = true
-                                // ... aquí tu lógica de creación de orden, stock y limpieza de carrito ...
-                                navController.navigate(Screen.Processing.route) {
-                                    popUpTo(Screen.Home.route)
+                                try {
+                                    // 1) Nuevo ID y payload
+                                    val orderId = UUID.randomUUID().toString()
+                                    val orderData = mapOf(
+                                        "timestamp" to System.currentTimeMillis(),
+                                        "products" to items.map { detail ->
+                                            mapOf(
+                                                "productId" to detail.product.id,
+                                                "quantity" to detail.quantity
+                                            )
+                                        },
+                                        "total" to total
+                                    )
+                                    // 2) Guarda la orden
+                                    db.collection("orders")
+                                        .document(uid)
+                                        .collection("userOrders")
+                                        .document(orderId)
+                                        .set(orderData)
+                                        .await()
+                                    // 3) Vacía solo el array products
+                                    db.collection("cart")
+                                        .document(uid)
+                                        .update("products", emptyList<Map<String, Any>>())
+                                        .await()
+                                    // 4) Navega a ProcessingScreen
+                                    navController.navigate(Screen.Processing.route) {
+                                        popUpTo(Screen.Home.route) { inclusive = false }
+                                    }
+                                } catch (e: Exception) {
+                                    error = e.message
+                                } finally {
+                                    isProcessing = false
                                 }
-                                isProcessing = false
                             }
                         },
                         enabled = !isProcessing,
@@ -174,8 +195,8 @@ fun CartScreen(navController: NavController) {
                 )
                 items.isEmpty() -> Text(
                     "Tu carrito está vacío",
-                    modifier = Modifier.align(Alignment.Center),
-                    style = MaterialTheme.typography.bodyLarge
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.align(Alignment.Center)
                 )
                 else -> LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     items(items) { (prod, qty) ->
@@ -200,8 +221,8 @@ private fun CartItemRow(product: Product, quantity: Int) {
             AsyncImage(
                 model = product.imageUrl.ifEmpty { "https://via.placeholder.com/60" },
                 contentDescription = product.name,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.size(60.dp)
+                modifier = Modifier.size(60.dp),
+                contentScale = ContentScale.Crop
             )
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
@@ -216,6 +237,8 @@ private fun CartItemRow(product: Product, quantity: Int) {
         }
     }
 }
+
+
 
 /**
  * Detalle de ítem del carrito con imagen y vendedor

@@ -44,15 +44,11 @@ import coil.compose.AsyncImage
 import com.example.moso.ui.theme.QuicksandFontFamily
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-// Modelo de venta reciente
 data class SoldProduct(
     val productId: String,
     val name: String,
@@ -65,13 +61,13 @@ data class SoldProduct(
 fun SalesScreen(
     navController: NavController
 ) {
-    var salesCount by remember { mutableStateOf(0) }
-    var recentSales by remember { mutableStateOf<List<SoldProduct>>(emptyList()) }
-    var isLoading by remember { mutableStateOf(true) }
-    var error by remember { mutableStateOf<String?>(null) }
+    var salesCount   by remember { mutableStateOf(0) }
+    var recentSales  by remember { mutableStateOf<List<SoldProduct>>(emptyList()) }
+    var isLoading    by remember { mutableStateOf(true) }
+    var error        by remember { mutableStateOf<String?>(null) }
 
-    val uid = FirebaseAuth.getInstance().currentUser?.uid
-    val db = FirebaseFirestore.getInstance()
+    val uid    = FirebaseAuth.getInstance().currentUser?.uid
+    val db     = FirebaseFirestore.getInstance()
     val dateFmt = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
 
     LaunchedEffect(uid) {
@@ -81,40 +77,27 @@ fun SalesScreen(
             return@LaunchedEffect
         }
         try {
-            // Obtener todas las órdenes de todos los usuarios
-            val allOrders = db.collectionGroup("userOrders")
-                .get().await()
+            // 🔥 Leemos sólo la subcolección de ventas de este vendedor:
+            val salesSnapshot = db
+                .collection("sales")
+                .document(uid)
+                .collection("salesList")
+                .get()
+                .await()
 
-            // Aplanar lista de pares (productId, timestamp) repetido según cantidad
-            val pairs = allOrders.documents.flatMap { doc ->
-                @Suppress("UNCHECKED_CAST")
-                (doc.get("products") as? List<Map<String, Any>>)?.flatMap { item ->
-                    val pid = item["productId"] as? String ?: return@flatMap emptyList()
-                    val qty = (item["quantity"] as? Number)?.toInt() ?: 0
-                    List(qty) { pid to (doc.getLong("timestamp") ?: 0L) }
-                } ?: emptyList()
+            // Convertimos cada documento a SoldProduct:
+            val list = salesSnapshot.documents.map { doc ->
+                SoldProduct(
+                    productId = doc.getString("productId")!!,
+                    name      = doc.getString("name")     ?: "Sin nombre",
+                    imageUrl  = doc.getString("imageUrl")  ?: "",
+                    date      = dateFmt.format(Date(doc.getLong("timestamp") ?: 0L))
+                )
             }
 
-            // Filtrar ventas propias y ordenar
-            val mySalesList = coroutineScope {
-                pairs.mapNotNull { (pid, ts) ->
-                    async {
-                        val prodDoc = db.collection("products").document(pid).get().await()
-                        if (prodDoc.getString("sellerId") == uid) {
-                            SoldProduct(
-                                productId = pid,
-                                name = prodDoc.getString("name") ?: "Sin nombre",
-                                imageUrl = prodDoc.getString("imageUrl") ?: "",
-                                date = dateFmt.format(Date(ts))
-                            )
-                        } else null
-                    }
-                }.awaitAll().filterNotNull()
-            }
-
-            salesCount = mySalesList.size
-            recentSales = mySalesList.sortedByDescending { it.date }.take(3)
-            error = null
+            salesCount   = list.size
+            recentSales  = list.sortedByDescending { it.date }.take(3)
+            error        = null
         } catch (e: Exception) {
             error = e.message
         } finally {
@@ -134,61 +117,74 @@ fun SalesScreen(
             )
         }
     ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding)) {
+        Box(Modifier
+            .fillMaxSize()
+            .padding(padding)
+        ) {
             when {
-                isLoading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
-                error != null -> Text(error!!, color = MaterialTheme.colorScheme.error, modifier = Modifier.align(Alignment.Center))
-                else -> LazyColumn(
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    item {
-                        Text(
-                            "Total unidades vendidas: $salesCount",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontFamily = QuicksandFontFamily
-                        )
-                        Spacer(Modifier.height(16.dp))
-                        Text(
-                            "Ventas recientes",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontFamily = QuicksandFontFamily
-                        )
-                    }
-                    if (recentSales.isEmpty()) {
+                isLoading -> {
+                    CircularProgressIndicator(Modifier.align(Alignment.Center))
+                }
+                error != null -> {
+                    Text(
+                        text = error!!,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
+                else -> {
+                    LazyColumn(
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
                         item {
                             Text(
-                                "No hay ventas recientes",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontFamily = QuicksandFontFamily,
-                                modifier = Modifier.fillMaxWidth(),
-                                textAlign = TextAlign.Center
+                                "Total unidades vendidas: $salesCount",
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontFamily = QuicksandFontFamily
+                            )
+                            Spacer(Modifier.height(16.dp))
+                            Text(
+                                "Ventas recientes",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontFamily = QuicksandFontFamily
                             )
                         }
-                    } else {
-                        items(recentSales) { s ->
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                            ) {
-                                Row(
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .padding(12.dp),
-                                    verticalAlignment = Alignment.CenterVertically
+                        if (recentSales.isEmpty()) {
+                            item {
+                                Text(
+                                    "No hay ventas recientes",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontFamily = QuicksandFontFamily,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        } else {
+                            items(recentSales) { s ->
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                                 ) {
-                                    AsyncImage(
-                                        model = s.imageUrl.ifEmpty { "https://via.placeholder.com/60" },
-                                        contentDescription = s.name,
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier
-                                            .size(60.dp)
-                                            .clip(RoundedCornerShape(8.dp))
-                                    )
-                                    Spacer(Modifier.width(12.dp))
-                                    Column {
-                                        Text(s.name, style = MaterialTheme.typography.bodyLarge)
-                                        Text("Fecha: ${s.date}", style = MaterialTheme.typography.bodySmall)
+                                    Row(
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .padding(12.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        AsyncImage(
+                                            model = s.imageUrl.ifEmpty { "https://via.placeholder.com/60" },
+                                            contentDescription = s.name,
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier
+                                                .size(60.dp)
+                                                .clip(RoundedCornerShape(8.dp))
+                                        )
+                                        Spacer(Modifier.width(12.dp))
+                                        Column {
+                                            Text(s.name, style = MaterialTheme.typography.bodyLarge)
+                                            Text("Fecha: ${s.date}", style = MaterialTheme.typography.bodySmall)
+                                        }
                                     }
                                 }
                             }
@@ -199,3 +195,4 @@ fun SalesScreen(
         }
     }
 }
+

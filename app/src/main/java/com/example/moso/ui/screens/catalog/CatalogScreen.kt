@@ -38,11 +38,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.example.moso.R
 import com.example.moso.data.model.Product
 import com.example.moso.ui.navigation.Screen
 import com.example.moso.ui.theme.MosoBlue
@@ -62,7 +64,12 @@ fun CatalogScreen(navController: NavController, categoryId: String?) {
         try {
             val query = FirebaseFirestore.getInstance()
                 .collection("products")
-                .let { if (!categoryId.isNullOrBlank()) it.whereEqualTo("categoryId", categoryId) else it }
+                .let {
+                    if (!categoryId.isNullOrBlank())
+                        it.whereEqualTo("categoryId", categoryId.uppercase())
+                    else
+                        it
+                }
             val snapshot = query.get().await()
             products = snapshot.documents.mapNotNull {
                 it.toObject(Product::class.java)?.copy(id = it.id)
@@ -134,6 +141,14 @@ fun CatalogItem(
     product: Product,
     onClick: () -> Unit
 ) {
+    // 1️⃣ Acortamos la descripción a 25 chars + “…”
+    val shortDesc = remember(product.description) {
+        if (product.description.length > 25)
+            product.description.take(25) + "…"
+        else
+            product.description
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -144,12 +159,15 @@ fun CatalogItem(
     ) {
         AsyncImage(
             model = product.imageUrl,
+            placeholder = painterResource(R.drawable.placeholder),
+            error       = painterResource(R.drawable.placeholder),
             contentDescription = product.name,
             modifier = Modifier
                 .size(100.dp)
                 .clip(RoundedCornerShape(topStart = 12.dp, bottomStart = 12.dp)),
             contentScale = ContentScale.Crop
         )
+
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -162,12 +180,15 @@ fun CatalogItem(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+
+            // 2️⃣ Mostramos sólo la versión truncada
             Text(
-                text = product.description,
+                text = shortDesc,
                 style = MaterialTheme.typography.bodySmall,
-                maxLines = 2,
+                maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = "\$${product.price}",
