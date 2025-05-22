@@ -75,7 +75,7 @@ app/
 
 ---
 
-🎮 Uso
+## 🎮 Uso
 - Al iniciar la app podrás:
 
 - Registrarte o Iniciar sesión
@@ -94,14 +94,14 @@ app/
 
 ---
 
-🚀 Despliegue
+## 🚀 Despliegue
 
 Para generar un APK de producción:
   ./gradlew assembleRelease
 
 ---
 
-🤝 Contribuciones
+## 🤝 Contribuciones
   - Haz un fork
 
   - Crea una rama (git checkout -b feature/nueva-funcion)
@@ -115,7 +115,7 @@ Para generar un APK de producción:
 ---
 
 
-📄 Licencia
+## 📄 Licencia
 Este proyecto está bajo la licencia MIT.
 
 ---
